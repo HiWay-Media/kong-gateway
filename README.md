@@ -28,21 +28,35 @@ verificare che ciò che questo Dockerfile produce sia davvero ciò che girava in
 ## Build
 
 ```bash
-docker build --build-arg KONG_VERSION=2.8.5 -t kong-hiway:2.8.5 .
-./tests/smoke.sh kong-hiway:2.8.5 2.8.5
+docker build --build-arg KONG_VERSION=2.8.5 -t kong-hiway:2.8.5 .   # su Apple Silicon: --platform linux/amd64
+./tests/run.sh kong-hiway:2.8.5 2.8.5
 ```
 
 La CI builda **entrambe** le linee dallo stesso albero: `2.8.5` (la fase 1 del piano) e `3.9.3`
 (l'ultima con immagine OSS prebuilt). Serve a misurare la distanza da 3.x senza toccare la produzione.
 
+🔴 **La build 2.8.5 oggi fallisce**, e non per i test: `luarocks` nell'immagine base non riesce più a
+caricare il manifest di luarocks.org. Diagnosi, prova e conseguenze in [MILESTONES.md](MILESTONES.md), M0.
+
+## Milestone e test
+
+Ogni fase del piano ha un test che ne contiene il criterio di uscita: `tests/milestones/M*.sh`.
+Una milestone non ancora raggiunta è dichiarata `expect xfail` — il suo test fallisce **di proposito**
+e il runner la segna `XFAIL`, non rosso. Quando inizia a passare, il runner va in rosso (`XPASS`)
+finché non si toglie la dichiarazione e si aggiorna il documento: serve a evitare sia i rossi che
+si normalizzano, sia i traguardi raggiunti che nessuno registra.
+
+Lo stato sta in [MILESTONES.md](MILESTONES.md); le regole di lavoro, per persone e agenti, in
+[AGENTS.md](AGENTS.md).
+
 ## ⛔ La decisione aperta
 
-**La build 3.x è attesa rossa, ed è voluto.** Il `Dockerfile` installa su 3.x solo `kong-path-allow`,
-e lo smoke test fallisce esplicitamente: `oidc` e `jwt-keycloak` non hanno ancora un sostituto scelto.
+**La build 3.x non passa, ed è dichiarato.** Il `Dockerfile` installa su 3.x solo `kong-path-allow`:
+`oidc` e `jwt-keycloak` non hanno ancora un sostituto scelto (milestone `M3`, `XFAIL`).
 
-Meglio una build rossa che un'immagine che si dichiara pronta e non lo è. Quando la decisione è presa
-— quale fork, o se consolidare i due plugin in uno solo — si aggiunge la riga e il rosso diventa verde
-da sé.
+Meglio un traguardo dichiarato mancante che un'immagine che si dice pronta e non lo è. Quando la
+decisione è presa — quale fork, o se consolidare i due plugin in uno solo — si aggiunge la riga, il
+test va in `XPASS`, e resta rosso finché `MILESTONES.md` non dice quale fork è stato scelto e perché.
 
 ⚠️ Sostituire fork abbandonati con **altri** fork abbandonati, sul percorso di autenticazione, non è
 un guadagno netto di sicurezza. Va deciso con gli occhi aperti, non per inerzia.
@@ -56,10 +70,3 @@ pubblicare: `latest` deve voler dire *l'ultima release*, non *l'ultimo commit*.
 ghcr.io/hiway-media/kong-gateway:2.8.5
 ghcr.io/hiway-media/kong-gateway:2.8.5-v1.0.0
 ```
-
-⚠️ **Nei payload Nomad va pinnato il digest, non il tag.** Un tag può essere ri-pubblicato sotto i
-piedi dei job: è esattamente la causa radice dell'incident `s3-proxy`. La CI stampa il digest da usare.
-
-⚠️ **Prima del primo deploy** va verificato che i nodi Nomad — compresi i `dev-agent-*` — riescano a
-fare `docker pull` da `ghcr.io` senza credenziali. È la stessa verifica già aperta per `crowdsim`.
-Se il package è privato: `auth` nel blocco `Config` del job, oppure mirror su ``.
