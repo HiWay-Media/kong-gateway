@@ -1,72 +1,79 @@
 # kong-gateway
+
+A reproducible Kong Gateway image carrying three non-bundled plugins: **OIDC**, **JWT-Keycloak**
+and **path-allow**. Full documentation: [docs/](docs/index.md).
+
 ---
 
-## Perché questo repo esiste
+## Why this repository exists
 
-L'immagine in produzione fino al settembre 2026 era `/kong:2.0.3-ubuntu-oidc-jwt`.
-**Non è mai stata costruita da un Dockerfile.** `docker history` mostra due layer `docker commit`
-sopra il `kong:2.0.3-ubuntu` ufficiale: qualcuno è entrato in un container, ha installato i plugin a
-mano e ha committato. Il registry ne conteneva **una sola tag**, senza storia.
+The image this replaces was never built from a Dockerfile. `docker history` showed two
+`docker commit` layers on top of the official `kong:2.0.3-ubuntu`: somebody shelled into a
+container, installed the plugins by hand and committed the result. The registry held **a single
+tag**, with no history behind it.
 
-Era quindi un'immagine che nessuno poteva ricostruire — la stessa condizione dell'incident `s3-proxy`,
-dove ce ne si è accorti solo quando si è rotta. Per di più il suo layer di base scaricava Kong da
-**bintray**, spento nel 2021: nemmeno l'upstream era più rifabbricabile.
+So it was an image nobody could rebuild — and its base layer fetched Kong from **bintray**, shut
+down in 2021, so the upstream was not reproducible either.
 
-Il sorgente dei plugin è stato recuperato estraendolo dall'immagine il 2026-09-14 e si trova in
-[`reference/2.0.3-ubuntu-oidc-jwt/`](reference/2.0.3-ubuntu-oidc-jwt/). È la baseline: serve a
-verificare che ciò che questo Dockerfile produce sia davvero ciò che girava in produzione.
+The plugin sources were recovered by extracting them from that image on 2026-09-14 and live in
+[`reference/baseline-2.0.3/`](reference/baseline-2.0.3/). That is the baseline: it is what proves
+this Dockerfile produces what was actually running.
 
-## Cosa c'è dentro
+## What is inside
 
-| Plugin | Origine | In prod (2.0.3) | Per Kong ≥ 3.0 |
+| Plugin | Origin | In the 2.0.3 image | For Kong ≥ 3.0 |
 |---|---|---|---|
-| `kong-path-allow` | [seifchen](https://github.com/seifchen/kong-path-allow), Apache 2.0, pubblico su LuaRocks | `0.1-3` | ✅ **`0.2-0`**, pubblicata apposta per la 3.x |
-| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **nessuno** — usa `BasePlugin`, rimosso in 3.0. Fermo dal 2022 |
-| `jwt-keycloak` | [gbbirkisson](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak), repo archiviato | `1.1.0-1` | ⚠️ fork [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak), da valutare |
-| `lua-resty-openidc` | dipendenza di `kong-oidc` | `1.7.2-1` | dipende dal fork scelto |
+| `kong-path-allow` | [seifchen](https://github.com/seifchen/kong-path-allow), Apache 2.0, public on LuaRocks | `0.1-3` | ✅ **`0.2-0`**, published for the 3.x line |
+| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **none** — uses `BasePlugin`, removed in 3.0. Dormant since 2022 |
+| `jwt-keycloak` | [gbbirkisson](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak), archived | `1.1.0-1` | ⚠️ [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork, to evaluate |
+| `lua-resty-openidc` | dependency of `kong-oidc` | `1.7.2-1` | depends on the fork chosen |
 
 ## Build
 
 ```bash
-docker build --build-arg KONG_VERSION=2.8.5 -t kong-hiway:2.8.5 .   # su Apple Silicon: --platform linux/amd64
-./tests/run.sh kong-hiway:2.8.5 2.8.5
+docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
+./tests/run.sh kong-gateway:2.8.5 2.8.5
 ```
 
-La CI builda **entrambe** le linee dallo stesso albero: `2.8.5` (la fase 1 del piano) e `3.9.3`
-(l'ultima con immagine OSS prebuilt). Serve a misurare la distanza da 3.x senza toccare la produzione.
+CI builds **both** lines from the same tree: `2.8.5` and `3.9.3` (the last with a prebuilt OSS
+image). That is how the distance to 3.x is measured without changing anything that runs today.
 
-🔴 **La build 2.8.5 oggi fallisce**, e non per i test: `luarocks` nell'immagine base non riesce più a
-caricare il manifest di luarocks.org. Diagnosi, prova e conseguenze in [MILESTONES.md](MILESTONES.md), M0.
+On an arm64 workstation the `kong:*-ubuntu` base images have no native manifest: use
+`--platform linux/amd64` for the build and `DOCKER_PLATFORM=linux/amd64` in front of the tests.
+Without it the error is `no match for platform in manifest`, which does not say so.
 
-## Milestone e test
+## Milestones and tests
 
-Ogni fase del piano ha un test che ne contiene il criterio di uscita: `tests/milestones/M*.sh`.
-Una milestone non ancora raggiunta è dichiarata `expect xfail` — il suo test fallisce **di proposito**
-e il runner la segna `XFAIL`, non rosso. Quando inizia a passare, il runner va in rosso (`XPASS`)
-finché non si toglie la dichiarazione e si aggiorna il documento: serve a evitare sia i rossi che
-si normalizzano, sia i traguardi raggiunti che nessuno registra.
+Each phase of the plan has a test holding its exit criterion: `tests/milestones/M*.sh`. A milestone
+not reached yet is declared `expect xfail` — its test fails **on purpose** and the runner records
+`XFAIL`, not red. When it starts passing, the runner goes red (`XPASS`) until the declaration is
+dropped and the document updated. That closes both gaps: reds that normalise, and goals reached
+that nobody records.
 
-Lo stato sta in [MILESTONES.md](MILESTONES.md); le regole di lavoro, per persone e agenti, in
+State lives in [docs/milestones.md](docs/milestones.md); working rules, for people and agents, in
 [AGENTS.md](AGENTS.md).
 
-## ⛔ La decisione aperta
+## ⛔ The open decision
 
-**La build 3.x non passa, ed è dichiarato.** Il `Dockerfile` installa su 3.x solo `kong-path-allow`:
-`oidc` e `jwt-keycloak` non hanno ancora un sostituto scelto (milestone `M3`, `XFAIL`).
+**The 3.x build does not pass, and that is declared.** On 3.x the `Dockerfile` installs only
+`kong-path-allow`: `oidc` and `jwt-keycloak` have no chosen replacement (milestone `M3`, `XFAIL`).
 
-Meglio un traguardo dichiarato mancante che un'immagine che si dice pronta e non lo è. Quando la
-decisione è presa — quale fork, o se consolidare i due plugin in uno solo — si aggiunge la riga, il
-test va in `XPASS`, e resta rosso finché `MILESTONES.md` non dice quale fork è stato scelto e perché.
+A goal declared missing is better than an image that claims to be ready and is not. Once the
+decision is made — which fork, or whether to consolidate both plugins into one — the line is added,
+the test turns `XPASS`, and it stays red until `docs/milestones.md` records which fork was chosen and why.
 
-⚠️ Sostituire fork abbandonati con **altri** fork abbandonati, sul percorso di autenticazione, non è
-un guadagno netto di sicurezza. Va deciso con gli occhi aperti, non per inerzia.
+⚠️ Replacing abandoned forks with **other** abandoned forks, on the authentication path, is not a
+net security gain. It is a decision to take with eyes open, not one to drift into.
 
-## Pubblicazione
+## Publishing
 
-Solo da un tag annotato `v*` (o dispatch manuale esplicito). Un push su `main` builda e testa senza
-pubblicare: `latest` deve voler dire *l'ultima release*, non *l'ultimo commit*.
+Only from an annotated `v*` tag (or an explicit manual dispatch). A push to `main` builds and tests
+without publishing: `latest` must mean *the last release*, not *the last commit*.
 
 ```
 ghcr.io/hiway-media/kong-gateway:2.8.5
 ghcr.io/hiway-media/kong-gateway:2.8.5-v1.0.0
 ```
+
+⚠️ **Deployments must pin the digest, not the tag.** A tag can be repushed underneath a running
+workload; a digest cannot. CI prints the digest to use.

@@ -1,0 +1,38 @@
+site_name: kong-gateway
+site_description: A reproducible Kong Gateway image with OIDC, JWT-Keycloak and path-allow plugins
+site_url: https://hiway-media.github.io/kong-gateway/
+repo_url: https://github.com/HiWay-Media/kong-gateway
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Switch to dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Switch to light mode}
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - tables
+  - toc: {permalink: true}
+
+nav:
+  - Home: index.md
+  - Background: background.md
+  - Building: building.md
+  - Plugins: plugins.md
+  - Milestones: milestones.md
+  - Publishing: publishing.md

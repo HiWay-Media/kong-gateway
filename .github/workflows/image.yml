@@ -1,12 +1,13 @@
-# Builda l'immagine Kong di HiWay Media, la testa, e la pubblica su GHCR.
+# Builds the Kong image, tests it against the milestone suite, and publishes it to GHCR.
 #
-# L'ordine è deliberato: niente viene pubblicato prima che lo smoke test passi. Il test verifica che
-# kong-path-allow sia un controllo di autorizzazione funzionante, non solo un file presente — un
-# plugin che carica ma non blocca più nulla passerebbe qualsiasi healthcheck e sarebbe invisibile
-# a chi fa il pull.
+# The order is deliberate: nothing is published before the milestone suite passes. The gate checks
+# that kong-path-allow is a working authorization control, not merely a file that exists — a plugin
+# that loads but no longer blocks anything would pass any healthcheck and be invisible to whoever
+# pulls the image.
 #
-# Si pubblica solo da un tag annotato `v*` o da un dispatch manuale che lo chiede. Un push su main
-# builda e testa senza pubblicare: `latest` deve voler dire "l'ultima release", non "l'ultimo commit".
+# Publishing happens only from an annotated `v*` tag or a manual dispatch that asks for it. A push
+# to main builds and tests without publishing: `latest` must mean "the last release", not "the
+# last commit".
 name: image
 
 on:
@@ -19,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Pubblica su GHCR (altrimenti solo build e test)
+        description: Push the built image to GHCR (otherwise build and test only)
         type: boolean
         default: false
 
@@ -39,12 +40,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # 2.8.5 è la linea da portare in produzione (fase 1 del piano di upgrade).
-      # 3.9.3 è l'ultima con immagine OSS prebuilt, e qui è ATTESA ROSSA finché non si decide
-      # cosa mettere al posto di oidc e jwt-keycloak. Serve a misurare la distanza, non a passare.
+      # 2.8.5 is phase 1 of the upgrade plan.
+      # 3.9.3 is the last Kong major with a prebuilt OSS image. Its unmet milestones are declared
+      # `expect xfail` in the tests: the job stays green and reports XFAIL in the summary, and turns
+      # red only if a milestone regresses (FAIL) or an expected-red one starts passing (XPASS).
+      # This job used to be `continue-on-error` — a red nobody was reading any more.
       matrix:
         kong: ['2.8.5', '3.9.3']
-    continue-on-error: ${{ startsWith(matrix.kong, '3.') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -60,11 +62,12 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.kong }}
           cache-to: type=gha,mode=max,scope=${{ matrix.kong }}
 
-      - name: Smoke test
-        run: ./tests/smoke.sh "${{ env.IMAGE }}:${{ matrix.kong }}-ci" "${{ matrix.kong }}"
+      - name: Milestones (includes the smoke gate — see docs/milestones.md)
+        id: milestones
+        run: ./tests/run.sh "${{ env.IMAGE }}:${{ matrix.kong }}-ci" "${{ matrix.kong }}"
 
       - name: Login GHCR
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -72,7 +75,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -83,9 +86,9 @@ jobs:
             ${{ env.IMAGE }}:${{ matrix.kong }}-${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.kong }}
 
-      - name: Digest da pinnare nei job Nomad
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+      - name: Digest to pin in deployments
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         run: |
-          echo "::notice::Pinnare QUESTO digest nei payload, non il tag — lezione s3-proxy (v0.12.0)."
+          echo "::notice::Pin THIS digest in your job specs, not the tag. A tag can be repushed underneath a running deployment; a digest cannot."
           docker buildx imagetools inspect "${{ env.IMAGE }}:${{ matrix.kong }}" \
             --format '{{println .Manifest.Digest}}'
