@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img"
      aria-label="kong-gateway">
-  <!-- A gate that checks what passes: two pillars and an arch, with a tick inside.
-       Monochrome and drawn with currentColor, so it reads on the dark header, in light mode,
-       in dark mode, and at favicon size where anything more detailed turns to mud. -->
-  <path d="M11 55V29a21 21 0 0 1 42 0v26" stroke="currentColor" stroke-width="6"
+  <!-- A gate that checks what passes: an arch on two legs, with a tick inside it.
+       Drawn with currentColor and nothing else, so it holds up on the dark header, in both themes,
+       and at favicon size where anything more detailed turns into a smudge. The tick is centred in
+       the arch with even margins — off-centre it reads as a mistake rather than a mark. -->
+  <path d="M12 56V30a20 20 0 0 1 40 0v26" stroke="currentColor" stroke-width="6"
         stroke-linecap="round"/>
-  <path d="M22 34.5 29.5 42 44 27" stroke="currentColor" stroke-width="6"
+  <path d="M23 33.5 30 40.5 43 27.5" stroke="currentColor" stroke-width="6"
         stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

@@ -2,14 +2,17 @@
 
 ```bash
 docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
-./tests/smoke.sh kong-gateway:2.8.5 2.8.5
+./tests/run.sh kong-gateway:2.8.5 2.8.5
 ```
+
+`tests/run.sh` runs the milestones, and the pre-push gate (`tests/smoke.sh`) is one of them — run it
+alone when that is all you want to know.
 
 On an arm64 workstation the base image is amd64-only, so build and test under emulation:
 
 ```bash
 docker build --platform linux/amd64 --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
-DOCKER_PLATFORM=linux/amd64 ./tests/smoke.sh kong-gateway:2.8.5 2.8.5
+DOCKER_PLATFORM=linux/amd64 ./tests/run.sh kong-gateway:2.8.5 2.8.5
 ```
 
 `KONG_VERSION` selects both the base image and the plugin set, so one tree builds several Kong
@@ -109,6 +112,11 @@ system — Keycloak, an upstream, and the image between them — and asserts wha
 
 `tests/smoke.sh` runs before anything is published. It is deliberately not a healthcheck.
 
+- **exactly one OIDC implementation** — `kong-oidc` **or** oidcify, never both and never neither.
+  An image carrying both would leave it to a configuration file to decide which one guards a route,
+  with the abandoned one still a live code path. The gate also asks the image which one it declares
+  and refuses a mismatch: a check that is *told* what to expect cannot catch a build that produced
+  something else
 - **rocks are installed** — the shallowest check, and the least meaningful on its own
 - **modules load** — installing a rock proves a file was copied; requiring the module proves its
   dependencies actually resolved, which is precisely what `--deps-mode=none` does not verify at
@@ -117,6 +125,9 @@ system — Keycloak, an upstream, and the image between them — and asserts wha
   Kong 2.x does not, which is exactly how a missing one goes unnoticed for years
 - **Kong accepts the configuration** with all plugins enabled
 - **`kong-path-allow` is usable as an access control**
+- on an oidcify image: that the binary **answers Kong's schema query** on this base image, and — on
+  the 2.x variant — that the protobuf definitions sit where Kong 2.8 looks for them, without which
+  Kong does not start at all
 
 !!! note "Handlers need a stub"
     Plugin handlers touch the `kong` global at module scope, so a bare `require` outside the Kong

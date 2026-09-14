@@ -21,7 +21,8 @@ image be published, and pinned to exact artefacts from end to end.
 
 ```bash
 docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
-./tests/run.sh kong-gateway:2.8.5 2.8.5
+./tests/run.sh kong-gateway:2.8.5 2.8.5          # milestones, including the pre-push gate
+./tests/e2e/run.sh kong-gateway:2.8.5 2.8.5      # the whole system, with a real Keycloak
 ```
 
 ## What this is

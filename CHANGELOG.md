@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.9.1] - 2026-09-14
+
+### Fixed
+- **The logo was never looked at.** It had been drawn, committed and shipped without rendering it
+  once: the tick sat off-centre in the arch, which reads as a mistake rather than a mark. Rebalanced
+  and checked in the header, standalone, and at the sizes it actually appears in.
+- **The documentation described fewer checks than the gate performs.** `tests/smoke.sh` gained the
+  "exactly one OIDC implementation" invariant and the oidcify-specific checks two releases ago, and
+  [Building](docs/building.md) still listed the older set. A page that under-describes a gate is how
+  people stop trusting the gate.
+- Building and the landing page opened with `tests/smoke.sh`, which is now one milestone inside
+  `tests/run.sh`, and never mentioned the end-to-end suite at all.
+
 ## [1.9.0] - 2026-09-14
 
 ### Added
