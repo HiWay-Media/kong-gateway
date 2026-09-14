@@ -26,6 +26,8 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/run.sh` | Runner and summary (also writes the GitHub Actions step summary) |
 | `tests/policy.sh` | Publishing policy tests: which tags a release produces. Needs no image and no Docker |
 | `tests/e2e/` | The system test: Keycloak, an upstream, and the image between them. `run.sh` owns the waiting and the teardown |
+| `tests/e2e/stack.sh` | Which config, plugin list and storage mode belong together — shared by the suite and the local runner |
+| `scripts/run-local.sh` | Starts the same stack and **leaves it up**, for looking at rather than asserting on |
 | `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
 | `docs/backlog.md` | Known work, with the reason attached. One section per item, parsed |

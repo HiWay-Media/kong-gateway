@@ -69,6 +69,15 @@ what that cost and how the sources were recovered.
 
     [:octicons-arrow-right-24: Inspect them](plugins.md)
 
+-   :material-play-circle:{ .lg .middle } **Run it locally**
+
+    ---
+
+    One command brings up the gateway with a real Keycloak behind it and leaves it running, with
+    the requests worth trying first.
+
+    [:octicons-arrow-right-24: Start it](running-locally.md)
+
 -   :material-lan-connect:{ .lg .middle } **End-to-end**
 
     ---

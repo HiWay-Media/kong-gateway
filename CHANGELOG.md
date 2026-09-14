@@ -26,6 +26,28 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.14.0] - 2026-09-14
+
+### Added
+- **`scripts/run-local.sh`**: starts the gateway with a real Keycloak and an upstream behind it and
+  **leaves it running**, with `up`, `down`, `status`, `logs` and `token`. Until now the only way to
+  see Kong run was the end-to-end suite, which asserts and then tears everything down — right for a
+  test, useless for looking at something. It builds the image if it is missing, prints the routes it
+  actually started, and shows the two requests worth trying first.
+- **[Running locally](docs/running-locally.md)**, including which token each plugin validates:
+  `jwt-keycloak` checks the access token, `oidcify` the ID token, and sending the wrong one is an
+  easy way to spend an hour on a 401 that is behaving correctly.
+
+### Changed
+- **`tests/e2e/stack.sh`**: which declarative config, plugin list and storage mode belong together
+  now lives in one place, shared by the suite and the local runner. A second copy would drift, and
+  the first sign of it would be a test passing against a stack nobody else runs.
+
+### Fixed
+- The local runner rejected `token access` and `logs kong` — the positional after the action was
+  being parsed as an option, so the script refused the very commands it prints when it finishes.
+  Found by running what it advertises rather than by reading it.
+
 ## [1.13.0] - 2026-09-14
 
 ### Fixed
