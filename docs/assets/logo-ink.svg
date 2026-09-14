@@ -4,8 +4,8 @@
        The colour is explicit, not `currentColor`: this file is loaded through an <img> tag — by the
        docs theme and by the README — and an <img> has no inherited colour to take, so currentColor
        resolves to black. On a black header that is a logo nobody can see, which is exactly what
-       shipped. White, for the theme header, which is black in both light and dark mode. -->
-  <path d="M12 56V30a20 20 0 0 1 40 0v26" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
-  <path d="M23 33.5 30 40.5 43 27.5" stroke="#ffffff" stroke-width="6" stroke-linecap="round"
+       shipped. Ink, for light backgrounds — the README on a white page. -->
+  <path d="M12 56V30a20 20 0 0 1 40 0v26" stroke="#131a2b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M23 33.5 30 40.5 43 27.5" stroke="#131a2b" stroke-width="6" stroke-linecap="round"
         stroke-linejoin="round"/>
 </svg>

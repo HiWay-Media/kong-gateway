@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img"
      aria-label="kong-gateway">
   <!-- A gate that checks what passes: an arch on two legs, with a tick inside it.
-       Drawn with currentColor and nothing else, so it holds up on the dark header, in both themes,
-       and at favicon size where anything more detailed turns into a smudge. The tick is centred in
-       the arch with even margins — off-centre it reads as a mistake rather than a mark. -->
-  <path d="M12 56V30a20 20 0 0 1 40 0v26" stroke="currentColor" stroke-width="6"
-        stroke-linecap="round"/>
-  <path d="M23 33.5 30 40.5 43 27.5" stroke="currentColor" stroke-width="6"
-        stroke-linecap="round" stroke-linejoin="round"/>
+       The colour is explicit, not `currentColor`: this file is loaded through an <img> tag — by the
+       docs theme and by the README — and an <img> has no inherited colour to take, so currentColor
+       resolves to black. On a black header that is a logo nobody can see, which is exactly what
+       shipped. Teal, which holds on both a light and a dark browser tab strip. -->
+  <path d="M12 56V30a20 20 0 0 1 40 0v26" stroke="#2f9d94" stroke-width="6" stroke-linecap="round"/>
+  <path d="M23 33.5 30 40.5 43 27.5" stroke="#2f9d94" stroke-width="6" stroke-linecap="round"
+        stroke-linejoin="round"/>
 </svg>

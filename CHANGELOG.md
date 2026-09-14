@@ -26,6 +26,27 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.13.0] - 2026-09-14
+
+### Fixed
+- **The logo was invisible on the published site.** It was drawn with `stroke="currentColor"`, and
+  both the theme and a README embed it through an `<img>` tag — where there is no inherited colour
+  to take, so `currentColor` resolves to black. On a header that is black in both light and dark
+  mode, that is a logo nobody can see. It had been rendered and looked at once, standalone on a
+  white page: the single context where the bug does not show.
+- Colours are explicit now, in three files: `logo.svg` white for the theme header, `logo-ink.svg`
+  dark for light backgrounds, and `favicon.svg` teal so it survives both a light and a dark browser
+  tab strip.
+
+### Added
+- **The README shows the logo**, which it never did — with a `<picture>` element, so GitHub serves
+  the ink version on a light theme and the white one on dark.
+
+### Changed
+- Worth knowing when looking for it: Material renders the header logo only above ~1220px. Below
+  that the hamburger takes the slot and the logo moves into the navigation drawer. At laptop width
+  it looks absent and is not.
+
 ## [1.12.1] - 2026-09-14
 
 ### Fixed
