@@ -13,17 +13,15 @@ set -uo pipefail
 # is a different system, not a detail: DB-less Kong is configured by a declarative file and exposes
 # no Admin API, while a Postgres Kong is configured through migrations and an imported config.
 #
-#   --db postgres   Kong on Postgres, Keycloak on Postgres
-#   --db mariadb    Kong on Postgres, Keycloak on MariaDB
+#   --db postgres   Kong and Keycloak both on Postgres, as in production.
 #
-# Kong is on Postgres in both, and that is not a preference: `kong.conf` accepts `postgres` and
-# `off` and nothing else (2.8 also listed Cassandra, removed in 3.4). Kong cannot use MariaDB at
-# all. Keycloak can, and does here.
+# Postgres is not a preference for Kong: `kong.conf` accepts `postgres` and `off` and nothing else
+# (2.8 also listed Cassandra, removed in 3.4).
 E2E_DB=off
-if [ "${1:-}" = "--db" ]; then E2E_DB="${2:?usage: run.sh [--db postgres|mariadb] <image> [kong-version]}"; shift 2; fi
+if [ "${1:-}" = "--db" ]; then E2E_DB="${2:?usage: run.sh [--db postgres] <image> [kong-version]}"; shift 2; fi
 case "$E2E_DB" in
-  off|postgres|mariadb) ;;
-  *) echo "unknown --db value '$E2E_DB' (use postgres or mariadb)" >&2; exit 2 ;;
+  off|postgres) ;;
+  *) echo "unknown --db value '$E2E_DB' (use postgres)" >&2; exit 2 ;;
 esac
 
 IMAGE="${1:?usage: run.sh [--db postgres] <image> [kong-version]}"
@@ -201,23 +199,15 @@ else
   export KONG_DB_MODE=postgres KONG_PG_HOST=postgres KONG_PG_USER=kong KONG_PG_PASSWORD=kong
   export KONG_ADMIN_LISTEN_ADDR=0.0.0.0:8001
   unset KONG_DECLARATIVE_CONFIG
-  if [ "$E2E_DB" = mariadb ]; then
-    export KC_DB=mariadb KC_DB_URL_HOST=mariadb KC_DB_URL_DATABASE=keycloak \
-           KC_DB_USERNAME=keycloak KC_DB_PASSWORD=keycloak
-  else
-    export KC_DB=postgres KC_DB_URL_HOST=postgres KC_DB_URL_DATABASE=keycloak \
-           KC_DB_USERNAME=kong KC_DB_PASSWORD=kong
-  fi
+  export KC_DB=postgres KC_DB_URL_HOST=postgres KC_DB_URL_DATABASE=keycloak \
+         KC_DB_USERNAME=kong KC_DB_PASSWORD=kong
 fi
 
 echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER, storage: $E2E_DB)"
 
 if [ "$E2E_DB" != off ]; then
   echo "==> bringing up the databases and running Kong's migrations"
-  DBS=postgres
-  [ "$E2E_DB" = mariadb ] && DBS="postgres mariadb"
-  # shellcheck disable=SC2086
-  compose up -d --quiet-pull --wait $DBS >/dev/null || { echo "FAIL: the database did not start"; exit 1; }
+  compose up -d --quiet-pull --wait postgres >/dev/null || { echo "FAIL: Postgres did not start"; exit 1; }
   # Migrations and the config import are a one-shot: the same declarative file both modes use, so
   # the two are configured from one source rather than from two that drift apart.
   compose run --rm -T kong-migrations >/dev/null || { echo "FAIL: Kong migrations failed"; exit 1; }
@@ -261,16 +251,11 @@ if [ "$E2E_DB" != off ]; then
     ''|0) bad "Kong's routes table is empty: the config import did not reach Postgres" ;;
     *)    ok "Kong reads its routes from Postgres ($routes of them)" ;;
   esac
-  if [ "$E2E_DB" = mariadb ]; then
-    realms=$(compose exec -T mariadb mariadb -ukeycloak -pkeycloak -N -B keycloak \
-      -e "select count(*) from REALM where name = 'kong'" 2>/dev/null | tr -d ' \r')
-  else
-    realms=$(compose exec -T postgres psql -U kong -d keycloak -tAc \
-      "select count(*) from realm where name = 'kong'" 2>/dev/null | tr -d ' \r')
-  fi
+  realms=$(compose exec -T postgres psql -U kong -d keycloak -tAc \
+    "select count(*) from realm where name = 'kong'" 2>/dev/null | tr -d ' \r')
   case "${realms:-0}" in
-    ''|0) bad "the kong realm is not in $E2E_DB: Keycloak fell back to its dev store" ;;
-    *)    ok "Keycloak stores the realm in $E2E_DB" ;;
+    ''|0) bad "the kong realm is not in Postgres: Keycloak fell back to its dev store" ;;
+    *)    ok "Keycloak stores the realm in Postgres" ;;
   esac
 fi
 

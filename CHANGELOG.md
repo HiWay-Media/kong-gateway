@@ -26,6 +26,17 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.8.0] - 2026-09-14
+
+### Removed
+- **MariaDB.** Production runs Postgres, so the only database mode is `--db postgres`, with Kong and
+  Keycloak both on it. One mode that matches reality beats two where one is never exercised — and an
+  untested path in a test suite is worse than an absent one, because it looks like coverage.
+
+  The fact that prompted it stays recorded in [End-to-end](docs/end-to-end.md#storage-modes): Kong
+  accepts `postgres` and `off` and nothing else, so no estate standardised elsewhere can put Kong on
+  its own database.
+
 ## [1.7.0] - 2026-09-14
 
 ### Added

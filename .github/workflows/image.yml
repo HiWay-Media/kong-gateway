@@ -66,13 +66,12 @@ jobs:
           - {kong: '2.8.5', variant: '',        db: 'off'}
           - {kong: '2.8.5', variant: 'oidcify', db: 'off'}
           - {kong: '3.9.3', variant: '',        db: 'off'}
-          # On a database: Kong on Postgres (it supports nothing else), Keycloak on MariaDB, which
-          # is what production runs. Not for 3.9.3 + oidcify: there, Kong's Admin API root answers
-          # 500 with an external plugin registered, so decK cannot configure it at all. That is a
-          # Kong bug, it is written up in docs/end-to-end.md, and it is one more reason the 3.x
-          # image is not publishable yet.
-          - {kong: '2.8.5', variant: '',        db: 'mariadb'}
-          - {kong: '2.8.5', variant: 'oidcify', db: 'mariadb'}
+          # On Postgres, as production runs. Not for 3.9.3 + oidcify: there, Kong's Admin API root
+          # answers 500 with an external plugin registered, so decK cannot configure it at all. That
+          # is a Kong bug, written up in docs/end-to-end.md, and one more reason the 3.x image is
+          # not publishable yet.
+          - {kong: '2.8.5', variant: '',        db: 'postgres'}
+          - {kong: '2.8.5', variant: 'oidcify', db: 'postgres'}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

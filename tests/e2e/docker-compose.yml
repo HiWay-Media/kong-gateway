@@ -11,11 +11,11 @@
 name: kong-gateway-e2e
 
 services:
-  # Both Kong and Keycloak can run on Postgres, and in a real deployment they usually do. The suite
-  # runs either way — `tests/e2e/run.sh --db postgres` — because the storage mode changes real
-  # behaviour: DB-less Kong is configured by a declarative file and has no Admin API, while a
-  # Postgres Kong is configured through migrations and an imported config. Testing only one of them
-  # proves the plugins work under a configuration model that may not be the one in use.
+  # Both Kong and Keycloak run on Postgres here, as they do in production. The suite runs either
+  # way — `tests/e2e/run.sh --db postgres` — because the storage mode changes real behaviour:
+  # DB-less Kong is configured by a declarative file and has no Admin API, while a Postgres Kong is
+  # configured through migrations and a config loaded over that API. Testing only one of them proves
+  # the plugins work under a configuration model that may not be the one in use.
   postgres:
     image: postgres:14-alpine
     profiles: ['db']
@@ -29,24 +29,6 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U kong']
       interval: 2s
       timeout: 3s
-      retries: 30
-
-  # Keycloak's database, when the stack is asked to run on MariaDB — which Keycloak supports
-  # (`--db mariadb`) and Kong does not: `kong.conf` accepts `postgres` and `off`, and nothing else
-  # since Cassandra was removed in 3.4. So MariaDB here serves Keycloak, and Kong still needs
-  # Postgres or DB-less. That is a property of Kong, not a choice made here.
-  mariadb:
-    image: mariadb:11.4
-    profiles: ['db']
-    environment:
-      MARIADB_ROOT_PASSWORD: keycloak
-      MARIADB_DATABASE: keycloak
-      MARIADB_USER: keycloak
-      MARIADB_PASSWORD: keycloak
-    healthcheck:
-      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
-      interval: 3s
-      timeout: 5s
       retries: 30
 
   # One-shot: bootstraps Kong's schema and imports the same declarative file the DB-less mode reads,

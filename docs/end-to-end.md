@@ -119,20 +119,18 @@ and exposes no Admin API, while a database-backed Kong is configured through mig
 imported config.
 
 ```bash
-./tests/e2e/run.sh --db mariadb kong-gateway:2.8.5 2.8.5
+./tests/e2e/run.sh --db postgres kong-gateway:2.8.5 2.8.5
 ```
 
 | Mode | Kong | Keycloak |
 |---|---|---|
 | default | DB-less, declarative file | dev file store |
 | `--db postgres` | Postgres | Postgres |
-| `--db mariadb` | **Postgres** | MariaDB |
 
-!!! warning "Kong cannot use MariaDB — that is not a choice made here"
-    `kong.conf` accepts `postgres` and `off`, and nothing else. Kong 2.8 also listed Cassandra,
-    removed in 3.4. So in `--db mariadb` the MariaDB serves **Keycloak**, which supports it
-    (`--db mariadb`), and Kong is on Postgres either way. Anyone planning a deployment around a
-    MariaDB estate needs to know that Kong will still need Postgres or DB-less.
+!!! note "Postgres is the only database Kong has"
+    `kong.conf` accepts `postgres` and `off`, and nothing else — Kong 2.8 also listed Cassandra,
+    removed in 3.4. Worth knowing when planning around an estate standardised on something else:
+    Kong will still need Postgres, or no database at all.
 
 The configuration is loaded by **decK** through the Admin API, from the same declarative file the
 DB-less mode reads, so the two modes cannot drift apart. `kong config db_import` is not used: on
