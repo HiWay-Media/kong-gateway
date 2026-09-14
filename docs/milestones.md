@@ -60,6 +60,26 @@ baseline is the only evidence of what was actually running.
 
 The test runs on Kong < 3.0 only — on 3.x the plugin set is different by definition.
 
+!!! warning "Module parity is not source parity, and the sources differ"
+    M1 compares which modules exist, not what is in them. Comparing the contents on 2026-09-14
+    showed **six files differ** from the baseline: `oidc/handler.lua`, `oidc/schema.lua`,
+    `oidc/utils.lua`, `jwt-keycloak/handler.lua`, `jwt-keycloak/schema.lua` and
+    `jwt-keycloak/validators/roles.lua`. `kong-path-allow` matches exactly.
+
+    The differences are not cosmetic. The image being replaced carried **locally modified** plugins:
+    its `jwt-keycloak` schema accepts `internal_request_headers` and
+    `redirect_after_authentication_failed_uri`, and its handler can read a token payload left behind
+    by another plugin; its `oidc` schema accepts a `timeout`. None of that exists in the upstream
+    rocks this Dockerfile installs.
+
+    So a configuration using any of those fields would be **rejected** by this image, and a request
+    path that depended on that behaviour would change. Before this image replaces anything, the
+    running configuration has to be checked against those field names — and a decision made about
+    whether to carry the modifications forward or drop them deliberately.
+
+    Turning M1 into a content comparison would make it fail today. That is the honest state; the
+    test is left as it is only until that decision is recorded here.
+
 ## M2 — 2.x image publishable
 
 **Exit criterion:** `tests/smoke.sh` passes. The milestone calls the gate rather than restating it —

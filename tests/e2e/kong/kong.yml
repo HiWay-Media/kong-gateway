@@ -1,0 +1,36 @@
+# Declarative config for the end-to-end stack. One upstream, three routes, one plugin each — so a
+# failing assertion names exactly one plugin.
+_format_version: "2.1"
+
+services:
+  - name: upstream
+    url: http://upstream:80
+    routes:
+      # kong-path-allow: an allow-list. strip_path is on by default, so a request to /open/allowed
+      # reaches the plugin as /allowed — matching what the plugin actually compares against.
+      - name: open
+        paths: ['/open']
+        plugins:
+          - name: kong-path-allow
+            config:
+              allow_paths: ['/allowed']
+              regex: true
+
+      # jwt-keycloak: tokens must be signed by the realm and carry its issuer.
+      - name: jwt
+        paths: ['/jwt']
+        plugins:
+          - name: jwt-keycloak
+            config:
+              allowed_iss: ['http://keycloak:8080/realms/kong']
+
+      # oidc: no token means no pass-through — the browser flow starts with a redirect.
+      - name: oidc
+        paths: ['/oidc']
+        plugins:
+          - name: oidc
+            config:
+              client_id: kong-e2e
+              client_secret: kong-e2e-secret
+              discovery: http://keycloak:8080/realms/kong/.well-known/openid-configuration
+              ssl_verify: 'no'

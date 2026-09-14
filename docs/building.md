@@ -66,6 +66,11 @@ Each file in `tests/milestones/` holds one exit criterion. A milestone not reach
 passing the runner goes red (`XPASS`) until the declaration is dropped and [`milestones.md`](milestones.md) updated,
 so that neither a normalised red nor an unrecorded green can sit there unnoticed.
 
+## Beyond the image
+
+The smoke test and the milestones inspect an image. [End-to-end](end-to-end.md) runs the whole
+system — Keycloak, an upstream, and the image between them — and asserts what the plugins refuse.
+
 ## What the smoke test checks
 
 `tests/smoke.sh` runs before anything is published. It is deliberately not a healthcheck.

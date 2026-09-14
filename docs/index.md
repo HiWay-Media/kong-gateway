@@ -62,6 +62,15 @@ what that cost and how the sources were recovered.
 
     [:octicons-arrow-right-24: Inspect them](plugins.md)
 
+-   :material-lan-connect:{ .lg .middle } **End-to-end**
+
+    ---
+
+    The whole system running: Keycloak issuing real tokens, an upstream to protect, and the image
+    between them — asserting mostly what must be refused.
+
+    [:octicons-arrow-right-24: Run it](end-to-end.md)
+
 -   :material-flag-checkered:{ .lg .middle } **Milestones**
 
     ---

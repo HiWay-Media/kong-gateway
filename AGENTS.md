@@ -25,6 +25,7 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/milestones/M*.sh` | One file per milestone: the milestone itself, in executable form |
 | `tests/run.sh` | Runner and summary (also writes the GitHub Actions step summary) |
 | `tests/policy.sh` | Publishing policy tests: which tags a release produces. Needs no image and no Docker |
+| `tests/e2e/` | The system test: Keycloak, an upstream, and the image between them. `run.sh` owns the waiting and the teardown |
 | `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
 | `.github/workflows/image.yml` | 2.x/3.x build matrix, tests, and publishing from tags only |

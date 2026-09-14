@@ -1,0 +1,55 @@
+# The whole system, running: a real identity provider, a real upstream, and the image under test
+# between them.
+#
+# tests/smoke.sh proves the plugins LOAD. That is not the same as proving they DO anything: an
+# authorization plugin that loads but permits everything satisfies every load-time check ever
+# written. Here the plugins are configured and driven through Kong's proxy port, and what is
+# asserted is mostly what must be REFUSED.
+#
+# Started by tests/e2e/run.sh, which owns the waiting and the teardown.
+
+name: kong-gateway-e2e
+
+services:
+  # Fixed KC_HOSTNAME so the issuer is always http://keycloak:8080/realms/kong, whether the token is
+  # requested from the host or from inside the network. jwt-keycloak matches tokens against
+  # allowed_iss and fetches the realm keys from that same URL: a drifting issuer is the classic
+  # reason this plugin rejects perfectly valid tokens.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://keycloak:8080
+      KC_HOSTNAME_STRICT: 'false'
+      KC_HTTP_ENABLED: 'true'
+    volumes:
+      - ./keycloak/realm-kong.json:/opt/keycloak/data/import/realm-kong.json:ro
+    ports:
+      - '127.0.0.1:18080:8080'
+
+  upstream:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./upstream/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  kong:
+    # Set by tests/e2e/run.sh to the image under test.
+    image: ${KONG_IMAGE:?set KONG_IMAGE, or run tests/e2e/run.sh}
+    # The kong:*-ubuntu bases are amd64-only; on an arm64 workstation this runs under emulation.
+    platform: ${KONG_PLATFORM:-linux/amd64}
+    depends_on: [upstream, keycloak]
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PLUGINS: bundled,jwt-keycloak,oidc,kong-path-allow
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 'off'
+      KONG_LOG_LEVEL: notice
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+    volumes:
+      - ./kong/kong.yml:/kong/kong.yml:ro
+    ports:
+      - '127.0.0.1:18000:8000'

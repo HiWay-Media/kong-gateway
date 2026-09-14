@@ -26,6 +26,31 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.3.0] - 2026-09-14
+
+### Added
+- **End-to-end test of the whole system** (`tests/e2e/`): a `docker-compose.yml` starting Keycloak
+  with an imported realm, an nginx upstream, and the image under test between them, plus `run.sh`
+  which owns the waiting, the assertions and the teardown. Three routes, one plugin each, so a
+  failing assertion names exactly one plugin.
+
+  It asserts mostly **refusals**, because that is the half that cannot be seen on a running gateway:
+  an authorization plugin that has stopped blocking looks exactly like one that works. `path-allow`
+  refuses a path outside the allow-list; `jwt-keycloak` refuses no token, a malformed token, and a
+  well-formed token with an invalid signature, then accepts a real one issued by the realm; `oidc`
+  challenges an unauthenticated request instead of passing it through. The 200 from the allowed path
+  is checked to have come from the upstream, not from Kong.
+- **`e2e` CI job**, and the publish matrix now depends on it: nothing reaches the registry before
+  the plugins have been shown to decide, not merely to load.
+- **[End-to-end](docs/end-to-end.md)** documentation page, with the stack diagram and the reason
+  Keycloak's hostname is pinned — a drifting issuer is the usual cause of `jwt-keycloak` rejecting
+  valid tokens.
+
+### Fixed
+- Recorded in [Milestones](docs/milestones.md), M1: comparing the baseline against the built image
+  showed **six plugin files differ**. The replaced image carried locally modified `oidc` and
+  `jwt-keycloak` plugins with extra configuration fields. Module-name parity had been hiding it.
+
 ## [1.2.0] - 2026-09-14
 
 ### Changed

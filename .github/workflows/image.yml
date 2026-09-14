@@ -46,7 +46,27 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./tests/policy.sh
 
+  # The system test: Keycloak issuing real tokens, an upstream to protect, and the image between
+  # them. It builds its own 2.x image (the layer cache makes that cheap) because nothing should be
+  # published before the plugins have been shown to DECIDE, not merely to load.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the 2.x image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          build-args: KONG_VERSION=2.8.5
+          tags: kong-gateway:e2e
+          cache-from: type=gha,scope=2.8.5
+      - name: End-to-end
+        run: ./tests/e2e/run.sh kong-gateway:e2e 2.8.5
+
   build:
+    needs: [policy, e2e]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
