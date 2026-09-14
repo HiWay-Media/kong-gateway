@@ -31,12 +31,23 @@ this Dockerfile produces what was actually running.
 ## Build
 
 ```bash
+# What runs today
 docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
+
+# Same Kong, same jwt-keycloak, maintained OIDC plugin instead of the abandoned one
+docker build --build-arg KONG_VERSION=2.8.5 --build-arg OIDC_PROVIDER=oidcify \
+  -t kong-gateway:2.8.5-oidcify .
+
 ./tests/run.sh kong-gateway:2.8.5 2.8.5
+./tests/e2e/run.sh kong-gateway:2.8.5-oidcify 2.8.5
 ```
 
-CI builds **both** lines from the same tree: `2.8.5` and `3.9.3` (the last with a prebuilt OSS
-image). That is how the distance to 3.x is measured without changing anything that runs today.
+CI builds **three images** from the same tree: `2.8.5` as it runs today, `2.8.5-oidcify` (the same
+Kong with a maintained OIDC plugin), and `3.9.3`. The variant exists to separate two migrations that
+would otherwise arrive together — leaving an abandoned plugin, and jumping a Kong major.
+
+Both Kong lines are Apache-2.0: the licence is not what forces staying on 2.8. What ends at `3.9.3`
+is the prebuilt official image. 2.8.5 was released in June 2024 and has had no release since.
 
 On an arm64 workstation the `kong:*-ubuntu` base images have no native manifest: use
 `--platform linux/amd64` for the build and `DOCKER_PLATFORM=linux/amd64` in front of the tests.

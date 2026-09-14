@@ -61,7 +61,10 @@ jobs:
       # jwt-keycloak plugins, 3.x runs oidcify as an external plugin server and has no
       # jwt-keycloak at all. A green 2.x says nothing about the 3.x one.
       matrix:
-        kong: ['2.8.5', '3.9.3']
+        include:
+          - {kong: '2.8.5', variant: ''}
+          - {kong: '2.8.5', variant: 'oidcify'}
+          - {kong: '3.9.3', variant: ''}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -70,11 +73,16 @@ jobs:
         with:
           context: .
           load: true
-          build-args: KONG_VERSION=${{ matrix.kong }}
-          tags: kong-gateway:e2e-${{ matrix.kong }}
-          cache-from: type=gha,scope=${{ matrix.kong }}
+          build-args: |
+            KONG_VERSION=${{ matrix.kong }}
+            OIDC_PROVIDER=${{ matrix.variant }}
+          tags: kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
+          cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
       - name: End-to-end
-        run: ./tests/e2e/run.sh kong-gateway:e2e-${{ matrix.kong }} "${{ matrix.kong }}"
+        run: |
+          ./tests/e2e/run.sh \
+            "kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}" \
+            "${{ matrix.kong }}"
 
   build:
     needs: [policy, e2e]
@@ -87,7 +95,10 @@ jobs:
       # red only if a milestone regresses (FAIL) or an expected-red one starts passing (XPASS).
       # This job used to be `continue-on-error` — a red nobody was reading any more.
       matrix:
-        kong: ['2.8.5', '3.9.3']
+        include:
+          - {kong: '2.8.5', variant: ''}         # reproduces what runs today
+          - {kong: '2.8.5', variant: 'oidcify'}  # same Kong, maintained OIDC plugin
+          - {kong: '3.9.3', variant: ''}         # oidcify is the only option there
     steps:
       - uses: actions/checkout@v4
 
@@ -105,14 +116,19 @@ jobs:
         with:
           context: .
           load: true
-          build-args: KONG_VERSION=${{ matrix.kong }}
-          tags: ${{ steps.image.outputs.name }}:${{ matrix.kong }}-ci
-          cache-from: type=gha,scope=${{ matrix.kong }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.kong }}
+          build-args: |
+            KONG_VERSION=${{ matrix.kong }}
+            OIDC_PROVIDER=${{ matrix.variant }}
+          tags: ${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}-ci
+          cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
 
       - name: Milestones (includes the smoke gate — see docs/milestones.md)
         id: milestones
-        run: ./tests/run.sh "${{ steps.image.outputs.name }}:${{ matrix.kong }}-ci" "${{ matrix.kong }}"
+        run: |
+          ./tests/run.sh \
+            "${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}-ci" \
+            "${{ matrix.kong }}"
 
       - name: Login GHCR
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
@@ -129,7 +145,8 @@ jobs:
           {
             echo 'list<<TAGS_EOF'
             ./scripts/publish-tags.sh \
-              "${{ steps.image.outputs.name }}" "${{ matrix.kong }}" "$LATEST_LINE" "$GITHUB_REF"
+              "${{ steps.image.outputs.name }}" "${{ matrix.kong }}" "$LATEST_LINE" "$GITHUB_REF" \
+              "${{ matrix.variant }}"
             echo TAGS_EOF
           } >>"$GITHUB_OUTPUT"
 
@@ -139,13 +156,16 @@ jobs:
         with:
           context: .
           push: true
-          build-args: KONG_VERSION=${{ matrix.kong }}
+          build-args: |
+            KONG_VERSION=${{ matrix.kong }}
+            OIDC_PROVIDER=${{ matrix.variant }}
           tags: ${{ steps.tags.outputs.list }}
-          cache-from: type=gha,scope=${{ matrix.kong }}
+          cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
 
       - name: Digest to pin in deployments
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         run: |
           echo "::notice::Pin THIS digest in your job specs, not the tag. A tag can be repushed underneath a running deployment; a digest cannot."
-          docker buildx imagetools inspect "${{ steps.image.outputs.name }}:${{ matrix.kong }}" \
+          docker buildx imagetools inspect \
+            "${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}" \
             --format '{{println .Manifest.Digest}}'

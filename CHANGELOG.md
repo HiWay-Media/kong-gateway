@@ -26,6 +26,45 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.5.0] - 2026-09-14
+
+### Added
+- **A second 2.x image: `2.8.5-oidcify`.** Same Kong 2.8.5, same `jwt-keycloak`, same
+  `kong-path-allow` — only the abandoned `kong-oidc` is replaced by the maintained oidcify. Selected
+  with `--build-arg OIDC_PROVIDER=oidcify`, published under its own suffix, and **never** allowed to
+  take `latest` or the plain `2.8.5` tag.
+
+  It exists to separate two migrations that would otherwise arrive together: leaving a dead
+  authentication plugin, and jumping a Kong major. Doing the first alone makes the rollback an image
+  tag instead of a replan.
+- **Verified, not assumed: oidcify runs on Kong 2.8.5.** The end-to-end suite drives all three
+  images against a real Keycloak — the variant refuses a malformed token, an invalid signature and a
+  genuine token with the wrong audience, accepts a real ID token through to the upstream, redirects
+  a credential-less browser request, and keeps `jwt-keycloak` behaving exactly as on the legacy
+  image.
+- **M2b**, the milestone for that variant, including the two checks that keep it honest:
+  `jwt-keycloak` and `kong-path-allow` must be unchanged, or the variant is changing two things.
+- Policy cases and `scripts/publish-tags.sh` support for variant tags.
+
+### Fixed
+- **Kong 2.8 cannot start a Go plugin server out of the box**: it searches `/usr/local/kong/lib` for
+  the plugin protobuf definitions while the image ships them in `/usr/local/kong/include`, and fails
+  at init with `module load error: pluginsocket.proto`. The variant copies the include tree. Without
+  it Kong does not start at all, and the error names a `.proto` file rather than a plugin.
+
+### Changed
+- `tests/smoke.sh`, `tests/lib.sh` and the e2e runner ask the **image** which OIDC implementation it
+  carries instead of being told. A gate that is told what to expect cannot notice a build that
+  produced something else. The gate also rejects an image carrying **both** implementations: which
+  one guards a route would then be decided by a configuration file, with the abandoned one still a
+  live code path.
+- CI builds and end-to-end tests all three images.
+
+### Security
+- Recorded where it belongs: Kong Gateway is Apache-2.0 on **both** lines, so the licence is not a
+  reason to stay on 2.8 — what ends at `3.9.3` is the prebuilt official image. Kong 2.8.5 was
+  released in June 2024 and has had no release since, which is the argument that actually applies.
+
 ## [1.4.0] - 2026-09-14
 
 ### Added

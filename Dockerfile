@@ -14,6 +14,14 @@ ARG KONG_VERSION=2.8.5
 FROM kong:${KONG_VERSION}-ubuntu
 
 ARG KONG_VERSION
+# Which OIDC implementation this image carries. Empty means "pick by Kong major": kong-oidc below
+# 3.0, oidcify from 3.0 up, since kong-oidc cannot run there at all.
+#
+# The point of making it a variant rather than a rule is the 2.x line: `2.8.5` reproduces what runs
+# today, bit for bit, while `2.8.5-oidcify` is the same Kong with a MAINTAINED OIDC plugin. That is
+# a migration that can be tested and rolled back one image tag at a time, instead of being bundled
+# into the jump to Kong 3.
+ARG OIDC_PROVIDER=
 USER root
 
 # Every rock is pinned to an explicit rockspec URL rather than `luarocks install <name> <version>`.
@@ -66,7 +74,21 @@ RUN set -eux; \
 RUN set -eux; \
     KONG_MAJOR="${KONG_VERSION%%.*}"; \
     if [ "$KONG_MAJOR" -ge 3 ]; then \
+        OIDC="${OIDC_PROVIDER:-oidcify}"; \
+    else \
+        OIDC="${OIDC_PROVIDER:-kong-oidc}"; \
+    fi; \
+    if [ "$KONG_MAJOR" -ge 3 ] && [ "$OIDC" = kong-oidc ]; then \
+        echo "kong-oidc uses BasePlugin, removed in Kong 3.0: it cannot run on $KONG_VERSION" >&2; \
+        exit 1; \
+    fi; \
+    echo "$OIDC" > /usr/local/share/kong-gateway-oidc-provider; \
+    if [ "$KONG_MAJOR" -ge 3 ]; then \
         luarocks install --deps-mode=none "${RS}/seifchen/kong-path-allow-0.2-0.rockspec"; \
+    elif [ "$OIDC" = oidcify ]; then \
+        luarocks install --deps-mode=none "${RS}/cdbattags/lua-resty-jwt-0.2.2-0.rockspec"; \
+        luarocks install --deps-mode=none "${RS}/gbbirkisson/kong-plugin-jwt-keycloak-1.1.0-1.rockspec"; \
+        luarocks install --deps-mode=none "${RS}/seifchen/kong-path-allow-0.1-3.rockspec"; \
     else \
         luarocks install --deps-mode=none "${RS}/cdbattags/lua-resty-jwt-0.2.2-0.rockspec"; \
         luarocks install --deps-mode=none "${RS}/utix/lua-resty-cookie-0.1.0-1.rockspec"; \
@@ -78,8 +100,8 @@ RUN set -eux; \
     fi
 
 RUN set -eux; \
-    KONG_MAJOR="${KONG_VERSION%%.*}"; \
-    if [ "$KONG_MAJOR" -lt 3 ]; then exit 0; fi; \
+    OIDC="$(cat /usr/local/share/kong-gateway-oidc-provider)"; \
+    if [ "$OIDC" != oidcify ]; then exit 0; fi; \
     ARCH="${TARGETARCH:-amd64}"; \
     case "$ARCH" in \
         amd64) SHA="$OIDCIFY_SHA256_AMD64" ;; \
@@ -95,7 +117,16 @@ RUN set -eux; \
     install -m 0755 /tmp/oidcify/oidcify /usr/local/bin/oidcify; \
     install -D -m 0644 /tmp/oidcify/LICENSE /usr/local/share/oidcify/LICENSE; \
     rm -rf /tmp/oidcify /tmp/oidcify.tgz; \
-    /usr/local/bin/oidcify -dump >/dev/null
+    /usr/local/bin/oidcify -dump >/dev/null; \
+    KONG_MAJOR="${KONG_VERSION%%.*}"; \
+    if [ "$KONG_MAJOR" -lt 3 ]; then \
+        # Kong 2.8's plugin-server loader searches /usr/local/kong/lib for the protobuf definitions,
+        # but the image ships them in /usr/local/kong/include. Without this copy Kong 2.8 does not
+        # start at all with a Go plugin: "module load error: pluginsocket.proto", then
+        # "google/protobuf/descriptor.proto". It is a path bug in a Kong line that will get no more
+        # releases, so it is worked around here rather than waited on.
+        cp -r /usr/local/kong/include/. /usr/local/kong/lib/; \
+    fi
 
 # ⚠️ The >= 3 branch still has no replacement for jwt-keycloak, so a 3.x build FAILS its smoke test
 # even with oidcify in place. That is intentional — a red build tells the truth better than an image

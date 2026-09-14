@@ -20,10 +20,10 @@ fails=0
 ok()   { printf '  ok   %s\n' "$1"; }
 bad()  { printf '  FAIL %s\n' "$1"; fails=$((fails + 1)); }
 
-# case: <description> <kong> <ref> <expected tag list, comma-separated>
+# case: <description> <kong> <ref> <expected tags, comma-separated> [variant]
 case_is() {
-  local desc="$1" kong="$2" ref="$3" want="$4" got
-  got=$("$TAGS" "$IMAGE" "$kong" "$LATEST_LINE" "$ref" | paste -sd, -)
+  local desc="$1" kong="$2" ref="$3" want="$4" variant="${5:-}" got
+  got=$("$TAGS" "$IMAGE" "$kong" "$LATEST_LINE" "$ref" "$variant" | paste -sd, -)
   [ "$got" = "$want" ] && ok "$desc" || bad "$desc
          expected: $want
          got:      $got"
@@ -49,6 +49,24 @@ case_is "a manual dispatch from main publishes no latest and no release tag" \
 case_is "a pre-release tag publishes the release but does not move latest" \
   2.8.5 refs/tags/v1.1.0-rc.1 \
   "$IMAGE:2.8.5,$IMAGE:2.8.5-v1.1.0-rc.1"
+
+# A variant is the same Kong with a different plugin set, so it cannot answer to the same names.
+# `2.8.5` must keep meaning the image that reproduces production; the variant lives beside it under
+# its own suffix, and never takes `latest` — that would silently move every deployment following the
+# tag onto a different authentication plugin.
+case_is "a variant publishes under its own suffix" \
+  2.8.5 refs/tags/v1.5.0 \
+  "$IMAGE:2.8.5-oidcify,$IMAGE:2.8.5-oidcify-v1.5.0" \
+  oidcify
+
+case_is "a variant never takes latest, even on the line that carries it" \
+  2.8.5 refs/tags/v1.5.0 \
+  "$IMAGE:2.8.5-oidcify,$IMAGE:2.8.5-oidcify-v1.5.0" \
+  oidcify
+
+case_is "the default build of the same line still takes latest" \
+  2.8.5 refs/tags/v1.5.0 \
+  "$IMAGE:2.8.5,$IMAGE:2.8.5-v1.5.0,$IMAGE:latest"
 
 echo "==> the workflow actually uses that decision"
 

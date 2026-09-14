@@ -10,6 +10,9 @@ source "$(dirname "$0")/../lib.sh"
 milestone M1 "Module parity with the extracted 2.0.3 baseline"
 expect pass
 only_major lt 3
+# The baseline is the image that ran in production, which carried kong-oidc. The oidcify variant
+# deliberately does not match it there — that is the change being made, not a regression.
+only_provider kong-oidc
 
 [ -d "$BASELINE_DIR" ] || { echo "  FAIL baseline missing: $BASELINE_DIR"; exit 1; }
 

@@ -13,7 +13,41 @@ DOCKER_PLATFORM=linux/amd64 ./tests/smoke.sh kong-gateway:2.8.5 2.8.5
 ```
 
 `KONG_VERSION` selects both the base image and the plugin set, so one tree builds several Kong
-majors. CI builds `2.8.5` and `3.9.3` from every commit.
+majors. A second argument, `OIDC_PROVIDER`, selects the OIDC implementation — which is what makes
+the variant below possible.
+
+## Three images from one tree
+
+| Build | OIDC | Why it exists |
+|---|---|---|
+| `KONG_VERSION=2.8.5` | `kong-oidc` (Lua) | Reproduces what runs today, bit for bit |
+| `KONG_VERSION=2.8.5 OIDC_PROVIDER=oidcify` | `oidcify` (Go) | Same Kong, same `jwt-keycloak`, **maintained** OIDC |
+| `KONG_VERSION=3.9.3` | `oidcify` (Go) | `kong-oidc` cannot run on 3.x at all |
+
+```bash
+docker build --build-arg KONG_VERSION=2.8.5 --build-arg OIDC_PROVIDER=oidcify \
+  -t kong-gateway:2.8.5-oidcify .
+./tests/e2e/run.sh kong-gateway:2.8.5-oidcify 2.8.5
+```
+
+The variant exists to separate two migrations that would otherwise arrive together: getting off an
+abandoned OIDC plugin, and jumping a Kong major. It does the first alone — same Kong 2.8.5, same
+`jwt-keycloak`, same `kong-path-allow`, one plugin swapped — so a rollback is a tag, not a replan.
+The end-to-end suite runs against all three.
+
+!!! note "Both Kong lines are open source — that is not what changes at 3.x"
+    Kong Gateway is Apache-2.0 on both lines; nothing about the licence forces staying on 2.8.5.
+    What ends is the **prebuilt official image**: Docker Hub's `kong` library has tags up to
+    `3.9.3` and nothing for `3.10` or later. And 2.8.5 is not standing still by choice — it was
+    released in June 2024 and has had no release since, while 3.9.3 was released in June 2026.
+
+!!! warning "Kong 2.8 cannot start a Go plugin out of the box"
+    It looks for the plugin-server protobuf definitions in `/usr/local/kong/lib`, and the image
+    ships them in `/usr/local/kong/include`. Without a copy, Kong 2.8 fails at init with
+    `module load error: pluginsocket.proto` — and then, once that is fixed,
+    `google/protobuf/descriptor.proto`. The Dockerfile copies the whole include tree for the 2.x
+    variant. It is a path bug in a line that will get no further releases, so it is worked around
+    rather than waited on.
 
 ## ⚠️ The LuaRocks trap
 

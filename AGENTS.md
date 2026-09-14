@@ -18,7 +18,7 @@ that builds but whose contents nobody can account for is the starting point, not
 
 | Path | What it holds |
 |---|---|
-| `Dockerfile` | The recipe. One `ARG KONG_VERSION`, two branches (< 3.0 and >= 3.0) |
+| `Dockerfile` | The recipe. `ARG KONG_VERSION` picks the Kong line, `ARG OIDC_PROVIDER` the OIDC implementation |
 | `reference/baseline-2.0.3/` | Plugin sources extracted from the image being replaced. **Baseline, read-only** |
 | `tests/smoke.sh` | The pre-push gate: what must be true before an image may be published |
 | `tests/lib.sh` | Helpers and the result protocol (`PASS`/`FAIL`/`XFAIL`/`XPASS`/`SKIP`) |
@@ -36,7 +36,13 @@ that builds but whose contents nobody can account for is the starting point, not
 ```bash
 docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
 ./tests/run.sh kong-gateway:2.8.5 2.8.5
+./tests/e2e/run.sh kong-gateway:2.8.5 2.8.5
 ```
+
+Three images come out of this tree: `2.8.5` (what runs today), `2.8.5-oidcify` (the same Kong with a
+maintained OIDC plugin, built with `--build-arg OIDC_PROVIDER=oidcify`), and `3.9.3`. The tests ask
+each image which implementation it carries rather than being told, so a build that produced the
+wrong one is caught instead of described.
 
 The `kong:*-ubuntu` base images are amd64-only, so an arm64 workstation needs
 `--platform linux/amd64` on the build and `DOCKER_PLATFORM=linux/amd64` in front of the tests.
@@ -95,6 +101,9 @@ Then add it to `docs/milestones.md` under the same identifier.
    are permitted: a test that only proves the module loads would pass even if it stopped blocking
    anything. This holds for any plugin on the auth path.
 7. **No secrets in the repository or in image layers.** Registry credentials come from the workflow.
+8. **A variant never takes a plain tag.** `2.8.5` means the image that reproduces production, and
+   `latest` follows the default line only: a deployment must never be moved onto a different
+   authentication plugin by a publish. `tests/policy.sh` asserts it.
 
 ## Open decisions — do not close them by drift
 

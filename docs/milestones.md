@@ -21,6 +21,7 @@ Runner results:
 | **M0** | Reproducible recipe | `M0-reproducible-recipe.sh` | 🟢 `PASS` (2.8.5 and 3.9.3) |
 | **M1** | Parity with the extracted baseline | `M1-parity-with-baseline.sh` | 🟢 `PASS` — 14 of 14 modules |
 | **M2** | 2.x image publishable | `M2-publishable-2x.sh` | 🟢 `PASS` |
+| **M2b** | 2.x variant carries a maintained OIDC | `M2b-maintained-oidc-on-2x.sh` | 🟢 `PASS` |
 | **M3** | Replacement chosen for `oidc` on 3.x — **oidcify** | `M3-oidc-replacement-3x.sh` | 🟢 `PASS` |
 | **M3b** | Replacement chosen for `jwt-keycloak` on 3.x | `M3b-jwt-keycloak-replacement-3x.sh` | 🟡 `XFAIL` — open decision |
 | **M4** | 3.x image publishable | `M4-publishable-3x.sh` | 🟡 `XFAIL` — depends on M3b |
@@ -94,6 +95,23 @@ accepts a configuration with all plugins enabled, and that `kong-path-allow` exp
 That last one is the one that matters. `kong-path-allow` is an **authorization** control, and an
 authorization control is verified by the case it must refuse. A plugin that loads but no longer
 blocks anything passes every healthcheck and is invisible to whoever pulls the image.
+
+## M2b — The 2.x variant carries a maintained OIDC implementation
+
+**Exit criterion.** On the `oidcify` build of the 2.x line: the binary is installed and answers
+Kong's schema query, the protobuf definitions are where Kong 2.8 looks for them, the abandoned
+`kong-oidc` is **not** shipped beside it, and `jwt-keycloak` and `kong-path-allow` are unchanged.
+
+**Verified on 2026-09-14: `PASS`**, with the end-to-end suite driving it against a real Keycloak.
+
+This milestone exists to separate two migrations that would otherwise arrive together: getting off
+an abandoned OIDC plugin, and jumping a Kong major. The variant does the first alone. The last two
+checks are the ones that keep it honest — if `jwt-keycloak` went missing, the variant would be
+changing two things and the rollback story would be gone.
+
+⚠️ It also proves something that was not obvious: **Kong 2.8 can run a Go plugin server**, once the
+protobuf path bug is worked around. Without that copy Kong does not start at all, and the error
+names a `.proto` file rather than anything to do with plugins.
 
 ## M3 — Replacement chosen for `oidc` on Kong 3.x
 

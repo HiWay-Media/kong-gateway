@@ -23,10 +23,25 @@ KONG_MAJOR="${KONG_MAJOR:-2}"
 export KONG_IMAGE="$IMAGE"
 export KONG_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
+# Which OIDC implementation this image carries, asked of the image rather than passed in: a test
+# that is TOLD what to expect cannot notice that the build produced something else.
+OIDC_PROVIDER=$(docker run --rm ${DOCKER_PLATFORM:+--platform $DOCKER_PLATFORM} \
+  --entrypoint sh "$IMAGE" -c 'cat /usr/local/share/kong-gateway-oidc-provider 2>/dev/null' \
+  2>/dev/null | tr -d '\r\n')
+OIDC_PROVIDER="${OIDC_PROVIDER:-kong-oidc}"
+
 # The two lines are not the same system, and the test says so out loud rather than papering over it.
 # 2.x runs the Lua oidc and jwt-keycloak plugins; 3.x runs oidcify, a Go binary Kong starts as an
 # external plugin server, and has no jwt-keycloak at all.
-if [ "$KONG_MAJOR" -ge 3 ]; then
+if [ "$OIDC_PROVIDER" = oidcify ] && [ "$KONG_MAJOR" -lt 3 ]; then
+  # The variant: production's Kong and production's jwt-keycloak, with the dead OIDC plugin
+  # replaced. One change under test, not two.
+  export KONG_CONFIG=./kong/kong.2x-oidcify.yml
+  export KONG_PLUGINS_LIST=bundled,jwt-keycloak,oidcify,kong-path-allow
+  export KONG_PLUGINSERVER_NAMES=oidcify
+  export KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
+  export KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
+elif [ "$KONG_MAJOR" -ge 3 ]; then
   export KONG_CONFIG=./kong/kong.3x.yml
   export KONG_PLUGINS_LIST=bundled,oidcify,kong-path-allow
   export KONG_PLUGINSERVER_NAMES=oidcify
@@ -86,60 +101,7 @@ expects() {
   [ "$got" = "$want" ] && ok "$desc (HTTP $got)" || bad "$desc — expected HTTP $want, got $got"
 }
 
-echo "==> starting the stack with $IMAGE"
-# --force-recreate, because a bind-mounted config file changing does not make compose replace a
-# running container: a stack left over from an earlier run would be reused, serving the previous
-# declarative config while reporting on the current one. That produced a confident, wrong red once
-# already — the routes were 404 because they belonged to a container nobody had noticed was stale.
-compose up -d --quiet-pull --force-recreate >/dev/null || { echo "FAIL: the stack did not start"; exit 1; }
-
-wait_for "$IDP/realms/kong/.well-known/openid-configuration" "Keycloak realm" || exit 1
-wait_for "$PROXY/open/allowed" "Kong proxy" || exit 1
-
-echo
-echo "==> kong-path-allow decides which paths exist at all"
-expects "an allowed path reaches the upstream" 200 "$PROXY/open/allowed"
-# The one that matters. If this ever returns 200, the allow-list has become decoration and every
-# other test in this file would still pass.
-expects "a path outside the allow-list is REFUSED" 403 "$PROXY/open/secret"
-expects "a path that merely starts like an allowed one is still checked" 403 "$PROXY/open/other"
-
-echo
-echo "==> the upstream is actually behind Kong, not being answered by it"
-if curl -fsS "$PROXY/open/allowed" | grep -q '"upstream":"reached"'; then
-  ok "the 200 came from the upstream"
-else
-  bad "the 200 did not come from the upstream — Kong answered on its own"
-fi
-
-if [ "$KONG_MAJOR" -lt 3 ]; then
-  echo
-  echo "==> jwt-keycloak refuses before it accepts"
-  expects "no token is refused" 401 "$PROXY/jwt/anything"
-  expects "a malformed token is refused" 401 -H 'Authorization: Bearer not-a-jwt' "$PROXY/jwt/anything"
-  # Correctly formed, signed by nobody: this is the case a plugin that only parses would let through.
-  FORGED='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImV4cCI6NDEwMjQ0NDgwMH0.bm90LWEtc2lnbmF0dXJl'
-  expects "a well-formed token with an invalid signature is refused" 401 \
-    -H "Authorization: Bearer $FORGED" "$PROXY/jwt/anything"
-
-  TOKEN=$(token_for access_token)
-  if [ -z "$TOKEN" ]; then
-    bad "Keycloak issued no token — the realm import or the client is wrong"
-  else
-    ok "Keycloak issued a token for alice"
-    expects "a real token from the realm is accepted" 200 \
-      -H "Authorization: Bearer $TOKEN" "$PROXY/jwt/anything"
-  fi
-
-  echo
-  echo "==> oidc starts an authorization code flow instead of passing the request through"
-  LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
-  case "$LOCATION" in
-    "$ISSUER"/protocol/openid-connect/auth*) ok "an unauthenticated request is redirected to the identity provider" ;;
-    "") bad "no redirect: the request was not challenged at all" ;;
-    *)  bad "redirected somewhere unexpected: $LOCATION" ;;
-  esac
-else
+assert_oidcify() {
   # oidcify is an external plugin server: Kong starts the Go process lazily, on the first request
   # that touches the plugin, and requests arriving before its socket exists get a 500. That is a
   # real operational property of this plugin model, not a flake — it is waited out here and written
@@ -195,6 +157,67 @@ else
     "") bad "no redirect: the request was not challenged at all" ;;
     *)  bad "redirected somewhere unexpected: $LOCATION" ;;
   esac
+}
+
+echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER)"
+# --force-recreate, because a bind-mounted config file changing does not make compose replace a
+# running container: a stack left over from an earlier run would be reused, serving the previous
+# declarative config while reporting on the current one. That produced a confident, wrong red once
+# already — the routes were 404 because they belonged to a container nobody had noticed was stale.
+compose up -d --quiet-pull --force-recreate >/dev/null || { echo "FAIL: the stack did not start"; exit 1; }
+
+wait_for "$IDP/realms/kong/.well-known/openid-configuration" "Keycloak realm" || exit 1
+wait_for "$PROXY/open/allowed" "Kong proxy" || exit 1
+
+echo
+echo "==> kong-path-allow decides which paths exist at all"
+expects "an allowed path reaches the upstream" 200 "$PROXY/open/allowed"
+# The one that matters. If this ever returns 200, the allow-list has become decoration and every
+# other test in this file would still pass.
+expects "a path outside the allow-list is REFUSED" 403 "$PROXY/open/secret"
+expects "a path that merely starts like an allowed one is still checked" 403 "$PROXY/open/other"
+
+echo
+echo "==> the upstream is actually behind Kong, not being answered by it"
+if curl -fsS "$PROXY/open/allowed" | grep -q '"upstream":"reached"'; then
+  ok "the 200 came from the upstream"
+else
+  bad "the 200 did not come from the upstream — Kong answered on its own"
+fi
+
+if [ "$KONG_MAJOR" -lt 3 ]; then
+  echo
+  echo "==> jwt-keycloak refuses before it accepts"
+  expects "no token is refused" 401 "$PROXY/jwt/anything"
+  expects "a malformed token is refused" 401 -H 'Authorization: Bearer not-a-jwt' "$PROXY/jwt/anything"
+  # Correctly formed, signed by nobody: this is the case a plugin that only parses would let through.
+  FORGED='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImV4cCI6NDEwMjQ0NDgwMH0.bm90LWEtc2lnbmF0dXJl'
+  expects "a well-formed token with an invalid signature is refused" 401 \
+    -H "Authorization: Bearer $FORGED" "$PROXY/jwt/anything"
+
+  TOKEN=$(token_for access_token)
+  if [ -z "$TOKEN" ]; then
+    bad "Keycloak issued no token — the realm import or the client is wrong"
+  else
+    ok "Keycloak issued a token for alice"
+    expects "a real token from the realm is accepted" 200 \
+      -H "Authorization: Bearer $TOKEN" "$PROXY/jwt/anything"
+  fi
+
+  if [ "$OIDC_PROVIDER" = oidcify ]; then
+    assert_oidcify
+  else
+    echo
+    echo "==> oidc starts an authorization code flow instead of passing the request through"
+    LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
+    case "$LOCATION" in
+      "$ISSUER"/protocol/openid-connect/auth*) ok "an unauthenticated request is redirected to the identity provider" ;;
+      "") bad "no redirect: the request was not challenged at all" ;;
+      *)  bad "redirected somewhere unexpected: $LOCATION" ;;
+    esac
+  fi
+else
+  assert_oidcify
 fi
 
 echo

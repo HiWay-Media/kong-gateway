@@ -31,6 +31,12 @@ PLATFORM_ARG=${DOCKER_PLATFORM:+--platform $DOCKER_PLATFORM}
 
 _ID=""; _TITLE=""; _EXPECT=pass; _FAILS=0; _CHECKS=0; _SKIP=""; _ROCKS=""
 
+# Which OIDC implementation the image carries — asked of the image, never passed in. A milestone
+# that is TOLD what the build produced cannot notice that it produced something else.
+OIDC_PROVIDER=$(docker run --rm $PLATFORM_ARG --entrypoint sh "$IMAGE" \
+  -c 'cat /usr/local/share/kong-gateway-oidc-provider 2>/dev/null' 2>/dev/null | tr -d '\r\n')
+OIDC_PROVIDER="${OIDC_PROVIDER:-kong-oidc}"
+
 milestone() { _ID="$1"; _TITLE="$2"; printf '\n== %s — %s\n' "$_ID" "$_TITLE"; }
 
 # expect pass  : the milestone is reached; a regression must be red
@@ -45,6 +51,12 @@ only_major() {
     lt) [ "$KONG_MAJOR" -lt "$n" ] || _SKIP="needs Kong < $n (this is $KONG_VERSION)" ;;
     *)  echo "only_major: unknown operator '$op'" >&2; exit 2 ;;
   esac
+  [ -z "$_SKIP" ] || exit 0
+}
+
+# Restrict a test to one OIDC variant, for the milestones that only make sense on one of them.
+only_provider() {
+  [ "$OIDC_PROVIDER" = "$1" ] || _SKIP="applies to the $1 image (this one carries $OIDC_PROVIDER)"
   [ -z "$_SKIP" ] || exit 0
 }
 
