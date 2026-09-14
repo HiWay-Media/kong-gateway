@@ -8,9 +8,10 @@ hide:
 
 # kong-gateway
 
-A Kong Gateway image carrying three plugins Kong does not bundle — **OIDC**, **JWT-Keycloak** and
-**path-allow** — built from one `Dockerfile`, checked by a test suite that refuses to let a broken
-image be published, and pinned to exact artefacts from end to end.
+Two Kong Gateway images from one `Dockerfile`, carrying three plugins Kong does not bundle — **OIDC**,
+**JWT-Keycloak** and **path-allow**. `2.8.5` reproduces what runs today; `2.8.5-oidcify` is the same
+Kong with the abandoned OIDC plugin replaced by a maintained one. Both pinned to exact artefacts and
+checked by a suite that refuses to let a broken image be published.
 
 <div class="kg-actions">
 <a class="kg-primary" href="building/">Build it</a>
@@ -27,8 +28,13 @@ docker build --build-arg KONG_VERSION=2.8.5 -t kong-gateway:2.8.5 .
 
 ## What this is
 
-One `Dockerfile`, parameterised by Kong version, building the same plugin set against more than one
-Kong major — plus a gate that runs before anything is published.
+One `Dockerfile`, parameterised by Kong version **and by OIDC plugin**, building three images —
+`2.8.5` (the legacy plugin set, as production runs it), `2.8.5-oidcify` (the same Kong with a
+maintained OIDC plugin), and `3.9.3` — plus a gate that runs before anything is published.
+
+The variant exists to separate two migrations that would otherwise arrive together: leaving an
+abandoned authentication plugin, and jumping a Kong major. Doing the first alone makes a rollback one
+image tag rather than a replan.
 
 It replaces an image that had **no build recipe at all**: two `docker commit` layers on top of an
 official base, one tag in the registry, no history behind it. [Background](background.md) covers

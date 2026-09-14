@@ -26,6 +26,20 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.12.1] - 2026-09-14
+
+### Fixed
+- **The README did not explain that there are two images.** The legacy `2.8.5` and the
+  `2.8.5-oidcify` variant were mentioned only inside the comments of the build commands and one
+  sentence below them, so the difference — and the reason for it — had to be inferred. A new
+  *Which image do I want?* section puts them side by side: same Kong, same `jwt-keycloak`, same
+  `kong-path-allow`, one plugin different, with the state of each plugin's upstream next to it.
+- Stated plainly why the legacy image ships an abandoned plugin on purpose: **reproducing something
+  faithfully is not the same as endorsing it**, and a recipe for what actually runs is the
+  precondition for changing it safely.
+- The documentation site's landing page said "a Kong Gateway image", singular, and described one
+  build argument. Both corrected.
+
 ## [1.12.0] - 2026-09-14
 
 ### Added
