@@ -98,7 +98,8 @@ Then add it to `docs/milestones.md` under the same identifier.
 
 ## Open decisions — do not close them by drift
 
-On Kong >= 3.0, `oidc` (nokia/kong-oidc, uses `BasePlugin`, dormant since 2022) and `jwt-keycloak`
+On Kong >= 3.0, `oidc` (nokia/kong-oidc — archived, and its README says not to use it in
+production) and `jwt-keycloak`
 (gbbirkisson, archived) have no chosen replacement. They sit on the **authentication path**:
 swapping abandoned forks for other abandoned forks is not a net security gain.
 

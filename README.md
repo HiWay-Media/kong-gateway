@@ -24,7 +24,7 @@ this Dockerfile produces what was actually running.
 | Plugin | Origin | In the 2.0.3 image | For Kong ≥ 3.0 |
 |---|---|---|---|
 | `kong-path-allow` | [seifchen](https://github.com/seifchen/kong-path-allow), Apache 2.0, public on LuaRocks | `0.1-3` | ✅ **`0.2-0`**, published for the 3.x line |
-| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **none** — uses `BasePlugin`, removed in 3.0. Dormant since 2022 |
+| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **none** — archived, README says not for production. Uses `BasePlugin`, removed in 3.0 |
 | `jwt-keycloak` | [gbbirkisson](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak), archived | `1.1.0-1` | ⚠️ [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork, to evaluate |
 | `lua-resty-openidc` | dependency of `kong-oidc` | `1.7.2-1` | depends on the fork chosen |
 

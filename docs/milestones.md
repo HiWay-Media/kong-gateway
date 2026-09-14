@@ -101,7 +101,9 @@ blocks anything passes every healthcheck and is invisible to whoever pulls the i
 
 **This is the repository's open decision, and it is `XFAIL` on purpose.**
 
-- `nokia/kong-oidc` uses `BasePlugin`, removed in Kong 3.0, and has been dormant since 2022.
+- `nokia/kong-oidc` is **archived**, and its README states it is not maintained and not
+  recommended in production. Last code change: June 2019. It also uses `BasePlugin`, removed in
+  Kong 3.0.
 - `gbbirkisson/kong-plugin-jwt-keycloak` is archived; the
   [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork exists and is
   worth evaluating.

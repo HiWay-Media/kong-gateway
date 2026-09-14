@@ -29,18 +29,32 @@ Its porting cost is a version bump.
 
 [nokia/kong-oidc](https://github.com/nokia/kong-oidc), built on `lua-resty-openidc`.
 
-⛔ **It cannot run on Kong 3.x.** It extends `BasePlugin`, which Kong 3.0 removed. The upstream issue
-asking for 3.x support has been open and unanswered since 2022, and the rock is no longer published
-on LuaRocks under that name — this build installs it from the repository's own `v1.1.0` tag.
+⛔ **Upstream declared it dead, and the repository is archived.** On 2026-05-18 the only commit in
+seven years added this to the README:
+
+> This project is not maintaned anymore. It is not recommended to use this project in production.
+
+The repository is archived (read-only) and the last functional change landed in **June 2019**. The
+released version this image installs, `v1.1.0`, is from **September 2018**.
+
+⛔ **It also cannot run on Kong 3.x.** It extends `BasePlugin`, which Kong 3.0 removed. The rock is
+no longer published on LuaRocks under that name, so this build installs it from the repository's own
+`v1.1.0` tag.
+
+!!! note "The engine underneath is alive"
+    `lua-resty-openidc`, which does the actual OIDC work, is maintained — last released in 2026. It
+    is the Kong-plugin wrapper around it that was abandoned, which is what makes "write the wrapper
+    ourselves" a real option rather than a heroic one.
 
 ## jwt-keycloak
 
 Validates Keycloak-issued access tokens. Reads its own priority from an environment variable at load
 time, which is why the smoke test needs a `kong` stub to require it.
 
-⚠️ **The upstream repository is archived.** The author stopped maintaining it and invited forks. A
-[Platformatory fork](https://github.com/Platformatory/kong-plugin-jwt-keycloak) claims Kong 3.x
-support.
+⚠️ **The upstream repository is archived** (last push August 2023). The author stopped maintaining
+it and invited forks. A [Platformatory fork](https://github.com/Platformatory/kong-plugin-jwt-keycloak)
+claims Kong 3.x support; it is small and lightly used — 4 stars, last pushed July 2024 — which is
+worth knowing before it is put on an authentication path.
 
 ## The open decision
 
@@ -48,6 +62,20 @@ The Kong 3.x build installs only `kong-path-allow` and then **fails its smoke te
 
 `oidc` and `jwt-keycloak` have no chosen replacement. Both candidate paths are forks of abandoned
 projects, and both sit on the **authentication** path.
+
+Measured on 2026-09-14, so the decision starts from facts rather than impressions:
+
+| Project | Archived | Last push | Note |
+|---|---|---|---|
+| [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | **yes** | 2026-05-18 | That push only added "not maintained"; last code change June 2019 |
+| [revomatico/kong-oidc](https://github.com/revomatico/kong-oidc) | **yes** | 2024-04-12 | The best-known 3.x fork — also archived |
+| [zmartzone/lua-resty-openidc](https://github.com/zmartzone/lua-resty-openidc) | no | 2026-09-05 | The engine both of them wrap. Maintained |
+| [gbbirkisson/kong-plugin-jwt-keycloak](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak) | **yes** | 2023-08-14 | Author invited forks |
+| [Platformatory/…-jwt-keycloak](https://github.com/Platformatory/kong-plugin-jwt-keycloak) | no | 2024-07-25 | 4 stars, 1 fork |
+
+The pattern is worth naming: the *plugin wrappers* keep being abandoned, while the *library* they
+wrap stays maintained. A fork of a dead wrapper inherits the same fate; a thin wrapper written here,
+over a maintained library, does not.
 
 !!! danger "Replacing dead forks with other dead forks is not a security gain"
     It moves the debt rather than settling it. The work is real either way — but it should be chosen

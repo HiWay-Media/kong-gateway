@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # M3 — The open decision: what replaces oidc and jwt-keycloak on Kong >= 3.0.
 #
-# nokia/kong-oidc uses BasePlugin, removed in Kong 3.0, and has been dormant since 2022.
+# nokia/kong-oidc uses BasePlugin, removed in Kong 3.0. Upstream archived it and its README now
+# says the project is not maintained and not recommended in production; last code change: 2019.
 # gbbirkisson/kong-plugin-jwt-keycloak is archived. This test is EXPECTED RED (`expect xfail`)
 # until that decision is made.
 #

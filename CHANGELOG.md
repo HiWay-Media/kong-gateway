@@ -26,6 +26,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.3.2] - 2026-09-14
+
+### Fixed
+- **`oidc` was described as "dormant since 2022". It is worse than that**, and the documentation now
+  says what was measured on 2026-09-14: `nokia/kong-oidc` is **archived**, its README states the
+  project is not maintained and *"not recommended to use in production"*, and its last code change
+  landed in **June 2019** — the 2026 commit only added that notice. The version installed here,
+  `v1.1.0`, is from September 2018.
+
+### Added
+- A table of the candidate projects for the M3 decision with their measured state, including
+  `revomatico/kong-oidc` — the best-known Kong 3.x fork, also archived — and the observation that
+  matters: the plugin *wrappers* keep being abandoned while `lua-resty-openidc`, the library they
+  wrap, stays maintained (last release 2026-09). A fork of a dead wrapper inherits that fate; a thin
+  wrapper written here over a maintained library does not.
+
 ## [1.3.1] - 2026-09-14
 
 ### Fixed
