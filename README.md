@@ -1,10 +1,4 @@
 # kong-gateway
-
-L'immagine Kong di HiWay Media, con i plugin che servono alle quattro zone (`sg`, `ov`, `cl`, `ovhdev`).
-
-Deploy: i payload Nomad vivono in [`teamcity-ci-cd`](https://gitlab.com/hiwaymedia/teamcity-ci-cd/-/tree/main/kong) ·
-analisi e piano: <https://hiwaymedia.gitlab.io/teamcity-ci-cd/services/kong/upgrade-plan/>
-
 ---
 
 ## Perché questo repo esiste
