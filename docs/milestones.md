@@ -161,4 +161,7 @@ publishes the 2.x line and skips 3.x without anyone having to remember.
 On Kong 3.x a handler without `VERSION` does not load. On 2.x it does — which is exactly why a
 missing one went unnoticed for years.
 
-Entirely dependent on M3b.
+Entirely dependent on M3b — and there is now a second thing to settle before 3.x can ship with a
+database: Kong 3.9.3's Admin API root answers 500 when an external plugin is registered, so decK
+cannot configure it. DB-less 3.x is unaffected, and Kong 2.8.5 with the same plugin is fine. See
+[End-to-end](end-to-end.md#storage-modes).

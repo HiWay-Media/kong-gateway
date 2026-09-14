@@ -62,9 +62,17 @@ jobs:
       # jwt-keycloak at all. A green 2.x says nothing about the 3.x one.
       matrix:
         include:
-          - {kong: '2.8.5', variant: ''}
-          - {kong: '2.8.5', variant: 'oidcify'}
-          - {kong: '3.9.3', variant: ''}
+          # DB-less, all three images.
+          - {kong: '2.8.5', variant: '',        db: 'off'}
+          - {kong: '2.8.5', variant: 'oidcify', db: 'off'}
+          - {kong: '3.9.3', variant: '',        db: 'off'}
+          # On a database: Kong on Postgres (it supports nothing else), Keycloak on MariaDB, which
+          # is what production runs. Not for 3.9.3 + oidcify: there, Kong's Admin API root answers
+          # 500 with an external plugin registered, so decK cannot configure it at all. That is a
+          # Kong bug, it is written up in docs/end-to-end.md, and it is one more reason the 3.x
+          # image is not publishable yet.
+          - {kong: '2.8.5', variant: '',        db: 'mariadb'}
+          - {kong: '2.8.5', variant: 'oidcify', db: 'mariadb'}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -78,9 +86,10 @@ jobs:
             OIDC_PROVIDER=${{ matrix.variant }}
           tags: kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
-      - name: End-to-end
+      - name: End-to-end (storage ${{ matrix.db }})
         run: |
           ./tests/e2e/run.sh \
+            ${{ matrix.db != 'off' && format('--db {0}', matrix.db) || '' }} \
             "kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}" \
             "${{ matrix.kong }}"
 

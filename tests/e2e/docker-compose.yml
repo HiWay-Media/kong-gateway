@@ -11,6 +11,80 @@
 name: kong-gateway-e2e
 
 services:
+  # Both Kong and Keycloak can run on Postgres, and in a real deployment they usually do. The suite
+  # runs either way — `tests/e2e/run.sh --db postgres` — because the storage mode changes real
+  # behaviour: DB-less Kong is configured by a declarative file and has no Admin API, while a
+  # Postgres Kong is configured through migrations and an imported config. Testing only one of them
+  # proves the plugins work under a configuration model that may not be the one in use.
+  postgres:
+    image: postgres:14-alpine
+    profiles: ['db']
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
+    volumes:
+      - ./postgres/init-keycloak-db.sh:/docker-entrypoint-initdb.d/init-keycloak-db.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kong']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Keycloak's database, when the stack is asked to run on MariaDB — which Keycloak supports
+  # (`--db mariadb`) and Kong does not: `kong.conf` accepts `postgres` and `off`, and nothing else
+  # since Cassandra was removed in 3.4. So MariaDB here serves Keycloak, and Kong still needs
+  # Postgres or DB-less. That is a property of Kong, not a choice made here.
+  mariadb:
+    image: mariadb:11.4
+    profiles: ['db']
+    environment:
+      MARIADB_ROOT_PASSWORD: keycloak
+      MARIADB_DATABASE: keycloak
+      MARIADB_USER: keycloak
+      MARIADB_PASSWORD: keycloak
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  # One-shot: bootstraps Kong's schema and imports the same declarative file the DB-less mode reads,
+  # so both modes are configured from one source rather than from two that drift.
+  kong-migrations:
+    image: ${KONG_IMAGE:?set KONG_IMAGE, or run tests/e2e/run.sh}
+    platform: ${KONG_PLATFORM:-linux/amd64}
+    profiles: ['db']
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=postgres
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=kong
+      - KONG_PLUGINS=${KONG_PLUGINS_LIST:-bundled,jwt-keycloak,oidc,kong-path-allow}
+      - KONG_PLUGINSERVER_NAMES
+      - KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD
+      - KONG_PLUGINSERVER_OIDCIFY_START_CMD
+    volumes:
+      - ${KONG_CONFIG:-./kong/kong.yml}:/kong/kong.yml:ro
+    entrypoint: ['sh', '-c']
+    # Only the schema. The configuration is loaded afterwards with decK, through the Admin API:
+    # `kong config db_import` cannot read a config containing an EXTERNAL plugin — on Kong 3.9 it
+    # dies in load_external_plugins with "attempt to index upvalue 'kong' (a nil value)", because
+    # the CLI has no runtime to ask the plugin server for its schema. decK talks to a running Kong,
+    # which does, and is how a database-backed Kong is configured in practice anyway.
+    command: ['kong migrations bootstrap']
+
+  # Loads the same declarative file into a running Kong through the Admin API, so both storage
+  # modes are configured from one source instead of two that drift.
+  deck:
+    image: kong/deck:v1.40.3
+    profiles: ['db']
+    entrypoint: ['sh', '-c']
+    volumes:
+      - ${KONG_CONFIG:-./kong/kong.yml}:/kong/kong.yml:ro
+
   # Fixed KC_HOSTNAME so the issuer is always http://keycloak:8080/realms/kong, whether the token is
   # requested from the host or from inside the network. jwt-keycloak matches tokens against
   # allowed_iss and fetches the realm keys from that same URL: a drifting issuer is the classic
@@ -24,6 +98,13 @@ services:
       KC_HOSTNAME: http://keycloak:8080
       KC_HOSTNAME_STRICT: 'false'
       KC_HTTP_ENABLED: 'true'
+      # Empty unless the db profile is on: Keycloak then falls back to its dev file database, which
+      # is what `start-dev` uses and what it warns is not for production.
+      KC_DB: ${KC_DB:-}
+      KC_DB_URL_HOST: ${KC_DB_URL_HOST:-}
+      KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE:-}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:-}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-}
     volumes:
       - ./keycloak/realm-kong.json:/opt/keycloak/data/import/realm-kong.json:ro
     ports:
@@ -45,8 +126,14 @@ services:
     # true and refuses to start with "pluginserver_oidcify_start_cmd is not a string: 'true'". With
     # the mapping form there is no way to leave a key out, so the 2.x line could not start at all.
     environment:
-      - KONG_DATABASE=off
-      - KONG_DECLARATIVE_CONFIG=/kong/kong.yml
+      # DB-less by default; `run.sh --db postgres` switches it. The declarative config and the PG
+      # settings are passed by bare name so that only the ones belonging to the active mode exist:
+      # Kong refuses to start when told to use a database AND given a declarative file.
+      - KONG_DATABASE=${KONG_DB_MODE:-off}
+      - KONG_DECLARATIVE_CONFIG
+      - KONG_PG_HOST
+      - KONG_PG_USER
+      - KONG_PG_PASSWORD
       # Set per Kong major by tests/e2e/run.sh: the 3.x line runs oidcify, which is a Go binary Kong
       # starts as an external plugin server rather than a Lua module it loads.
       - KONG_PLUGINS=${KONG_PLUGINS_LIST:-bundled,jwt-keycloak,oidc,kong-path-allow}
@@ -54,7 +141,9 @@ services:
       # cannot complete over http — the cookie is never sent back and the callback fails with 400.
       # Kong generates a self-signed certificate in DB-less mode; the in-network browser accepts it.
       - KONG_PROXY_LISTEN=0.0.0.0:8000, 0.0.0.0:8443 ssl
-      - KONG_ADMIN_LISTEN=off
+      # Off in DB-less mode (there is nothing to write), on inside the network when a database is
+      # in use, because that is the only way to configure it. Never published to the host.
+      - KONG_ADMIN_LISTEN=${KONG_ADMIN_LISTEN_ADDR:-off}
       - KONG_LOG_LEVEL=notice
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
       - KONG_PROXY_ERROR_LOG=/dev/stderr

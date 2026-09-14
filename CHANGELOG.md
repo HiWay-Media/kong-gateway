@@ -26,6 +26,40 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.7.0] - 2026-09-14
+
+### Added
+- **The stack can run on real databases**: `./tests/e2e/run.sh --db postgres|mariadb`. Kong gets
+  migrations and its configuration loaded by **decK** through the Admin API, Keycloak gets a real
+  database instead of its dev file store, and both are loaded from the same declarative file the
+  DB-less mode reads, so the modes cannot drift.
+
+  It is not a detail: DB-less Kong is configured by a file and exposes no Admin API, while a
+  database-backed Kong is configured through migrations and an import. Testing only one of them
+  proves the plugins work under a configuration model that may not be the one in use.
+- **MariaDB for Keycloak**, since that is what runs in production. ⚠️ Kong cannot use it: `kong.conf`
+  accepts `postgres` and `off` and nothing else (2.8 also listed Cassandra, removed in 3.4), so in
+  `--db mariadb` the MariaDB serves Keycloak and Kong is on Postgres. That is a property of Kong,
+  not a decision taken here, and it matters for anyone planning around a MariaDB estate.
+- Assertions that the databases are **actually being used** — Kong's `routes` table populated, the
+  realm present in Keycloak's schema — because a mode that quietly fell back would pass every other
+  check and prove nothing.
+- A new logo: a gate with a tick inside it, monochrome and legible at favicon size.
+
+### Fixed
+- `kong config db_import` is not used to load the configuration: on Kong 3.9 it cannot read a config
+  containing an external plugin, dying in `load_external_plugins` with
+  `attempt to index upvalue 'kong' (a nil value)` — the CLI has no runtime to ask the plugin server
+  for a schema. decK talks to a running Kong, which does.
+
+### Security
+- **Kong 3.9.3 + an external plugin + a database do not work together.** With oidcify registered,
+  the Admin API root answers 500 (`Cannot serialise cdata: type not supported`), so decK — and
+  anything else that reads `GET /` — cannot configure it. Measured the same day: **Kong 2.8.5 with
+  the same plugin answers 200**, and DB-less 3.x is unaffected. The suite refuses that combination
+  with the diagnosis rather than failing confusingly, CI does not run it, and it is one more reason
+  the 3.x image is not publishable.
+
 ## [1.6.0] - 2026-09-14
 
 ### Added

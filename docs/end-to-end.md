@@ -111,6 +111,51 @@ would be the first step to forgetting that the decision is still open.
     than hiding it behind a retry, because it is a real property of this plugin model: after a
     restart, the first user through the door can see a 500.
 
+## Storage modes
+
+By default Kong runs DB-less and Keycloak on its dev file store. `--db` runs both on real databases,
+which is a different system rather than a detail: DB-less Kong is configured by a declarative file
+and exposes no Admin API, while a database-backed Kong is configured through migrations and an
+imported config.
+
+```bash
+./tests/e2e/run.sh --db mariadb kong-gateway:2.8.5 2.8.5
+```
+
+| Mode | Kong | Keycloak |
+|---|---|---|
+| default | DB-less, declarative file | dev file store |
+| `--db postgres` | Postgres | Postgres |
+| `--db mariadb` | **Postgres** | MariaDB |
+
+!!! warning "Kong cannot use MariaDB — that is not a choice made here"
+    `kong.conf` accepts `postgres` and `off`, and nothing else. Kong 2.8 also listed Cassandra,
+    removed in 3.4. So in `--db mariadb` the MariaDB serves **Keycloak**, which supports it
+    (`--db mariadb`), and Kong is on Postgres either way. Anyone planning a deployment around a
+    MariaDB estate needs to know that Kong will still need Postgres or DB-less.
+
+The configuration is loaded by **decK** through the Admin API, from the same declarative file the
+DB-less mode reads, so the two modes cannot drift apart. `kong config db_import` is not used: on
+Kong 3.9 it cannot read a config containing an external plugin, dying in `load_external_plugins`
+with `attempt to index upvalue 'kong' (a nil value)` — the CLI has no runtime to ask the plugin
+server for its schema.
+
+The suite also asserts that the databases are **actually being used** — Kong's `routes` table is
+populated and the realm is in Keycloak's — because a mode that quietly fell back to DB-less or to
+the dev store would pass every other assertion and prove nothing.
+
+!!! danger "Kong 3.9.3 + an external plugin + a database do not work together"
+    With oidcify registered, Kong 3.9.3's Admin API root answers **500**:
+    `body encoding failed while flushing response: Cannot serialise cdata: type not supported`. The
+    schema the plugin server returns contains a value Kong cannot encode, and `GET /` is the first
+    thing decK asks for — so a database-backed Kong 3.9.3 running oidcify cannot be configured by
+    any tool that reads it.
+
+    Measured on 2026-09-14: **Kong 2.8.5 with the same plugin answers 200**, and DB-less 3.x works.
+    So the combination to avoid is precisely 3.x + external plugin + database. The suite refuses to
+    run it and says why, rather than producing a confusing failure — and it is one more reason the
+    3.x image is not publishable yet.
+
 ## Running it
 
 `tests/e2e/run.sh` owns the lifecycle: it starts the stack, waits for the realm and the proxy to

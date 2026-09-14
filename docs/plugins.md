@@ -70,6 +70,13 @@ KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
     **absent**, not blank — which is why the compose file passes them through by bare name rather
     than defaulting them to `""`.
 
+!!! danger "On Kong 3.9.3, an external plugin breaks the Admin API root"
+    With oidcify registered, `GET /` on Kong 3.9.3's Admin API answers 500 —
+    `Cannot serialise cdata: type not supported` — so decK, and anything else that reads that
+    endpoint, cannot configure a database-backed Kong. Kong **2.8.5** with the same plugin answers
+    200, and DB-less 3.x is unaffected. It is worth knowing before planning a 3.x migration that
+    also keeps a database.
+
 !!! warning "The browser flow needs TLS all the way to Kong"
     oidcify marks its session cookie `Secure`. If Kong serves the flow over plain HTTP — TLS
     terminated somewhere in front and forwarded as http, say — the cookie never comes back and the

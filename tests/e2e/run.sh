@@ -9,7 +9,24 @@
 # authorization plugin that has stopped blocking looks exactly like one that is working.
 set -uo pipefail
 
-IMAGE="${1:?usage: run.sh <image> [kong-version]}"
+# --db runs the stack on real databases instead of DB-less Kong and Keycloak's dev file store. It
+# is a different system, not a detail: DB-less Kong is configured by a declarative file and exposes
+# no Admin API, while a Postgres Kong is configured through migrations and an imported config.
+#
+#   --db postgres   Kong on Postgres, Keycloak on Postgres
+#   --db mariadb    Kong on Postgres, Keycloak on MariaDB
+#
+# Kong is on Postgres in both, and that is not a preference: `kong.conf` accepts `postgres` and
+# `off` and nothing else (2.8 also listed Cassandra, removed in 3.4). Kong cannot use MariaDB at
+# all. Keycloak can, and does here.
+E2E_DB=off
+if [ "${1:-}" = "--db" ]; then E2E_DB="${2:?usage: run.sh [--db postgres|mariadb] <image> [kong-version]}"; shift 2; fi
+case "$E2E_DB" in
+  off|postgres|mariadb) ;;
+  *) echo "unknown --db value '$E2E_DB' (use postgres or mariadb)" >&2; exit 2 ;;
+esac
+
+IMAGE="${1:?usage: run.sh [--db postgres] <image> [kong-version]}"
 KONG_VERSION="${2:-}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -176,15 +193,86 @@ assert_oidcify() {
   assert_login_round_trip
 }
 
-echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER)"
+if [ "$E2E_DB" = off ]; then
+  export KONG_DECLARATIVE_CONFIG=/kong/kong.yml
+else
+  export COMPOSE_PROFILES=db
+  # Kong: Postgres in both modes, because it has no other option.
+  export KONG_DB_MODE=postgres KONG_PG_HOST=postgres KONG_PG_USER=kong KONG_PG_PASSWORD=kong
+  export KONG_ADMIN_LISTEN_ADDR=0.0.0.0:8001
+  unset KONG_DECLARATIVE_CONFIG
+  if [ "$E2E_DB" = mariadb ]; then
+    export KC_DB=mariadb KC_DB_URL_HOST=mariadb KC_DB_URL_DATABASE=keycloak \
+           KC_DB_USERNAME=keycloak KC_DB_PASSWORD=keycloak
+  else
+    export KC_DB=postgres KC_DB_URL_HOST=postgres KC_DB_URL_DATABASE=keycloak \
+           KC_DB_USERNAME=kong KC_DB_PASSWORD=kong
+  fi
+fi
+
+echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER, storage: $E2E_DB)"
+
+if [ "$E2E_DB" != off ]; then
+  echo "==> bringing up the databases and running Kong's migrations"
+  DBS=postgres
+  [ "$E2E_DB" = mariadb ] && DBS="postgres mariadb"
+  # shellcheck disable=SC2086
+  compose up -d --quiet-pull --wait $DBS >/dev/null || { echo "FAIL: the database did not start"; exit 1; }
+  # Migrations and the config import are a one-shot: the same declarative file both modes use, so
+  # the two are configured from one source rather than from two that drift apart.
+  compose run --rm -T kong-migrations >/dev/null || { echo "FAIL: Kong migrations failed"; exit 1; }
+fi
 # --force-recreate, because a bind-mounted config file changing does not make compose replace a
 # running container: a stack left over from an earlier run would be reused, serving the previous
 # declarative config while reporting on the current one. That produced a confident, wrong red once
 # already — the routes were 404 because they belonged to a container nobody had noticed was stale.
-compose up -d --quiet-pull --force-recreate >/dev/null || { echo "FAIL: the stack did not start"; exit 1; }
+compose up -d --quiet-pull --force-recreate upstream keycloak kong >/dev/null \
+  || { echo "FAIL: the stack did not start"; exit 1; }
+
+if [ "$E2E_DB" != off ] && [ "$KONG_MAJOR" -ge 3 ] && [ "$OIDC_PROVIDER" = oidcify ]; then
+  echo
+  echo "FAIL: Kong $KONG_VERSION with an external plugin cannot be configured through its Admin API." >&2
+  echo "      GET / answers 500 — 'Cannot serialise cdata: type not supported' — because the schema" >&2
+  echo "      the plugin server returns contains a value Kong cannot encode, and decK reads that" >&2
+  echo "      endpoint first. Kong 2.8.5 with the same plugin answers 200; DB-less 3.x works too." >&2
+  echo "      See docs/end-to-end.md, 'Storage modes'. Run this combination without --db." >&2
+  exit 1
+fi
+
+if [ "$E2E_DB" != off ]; then
+  echo "==> loading the configuration into Kong with decK"
+  compose run --rm -T deck \
+    'for i in $(seq 1 40); do deck gateway ping --kong-addr http://kong:8001 >/dev/null 2>&1 && break; sleep 2; done
+     deck gateway sync /kong/kong.yml --kong-addr http://kong:8001' >/dev/null \
+    || { echo "FAIL: decK could not load the configuration"; exit 1; }
+fi
 
 wait_for "$IDP/realms/kong/.well-known/openid-configuration" "Keycloak realm" || exit 1
 wait_for "$PROXY/open/allowed" "Kong proxy" || exit 1
+
+if [ "$E2E_DB" != off ]; then
+  echo
+  echo "==> both databases are actually being used, not silently bypassed"
+  # Without this, a mode that quietly fell back — Kong to DB-less, Keycloak to its dev file store —
+  # would pass every assertion below and prove nothing about running on a database.
+  routes=$(compose exec -T postgres psql -U kong -d kong -tAc \
+    'select count(*) from routes' 2>/dev/null | tr -d ' \r')
+  case "${routes:-0}" in
+    ''|0) bad "Kong's routes table is empty: the config import did not reach Postgres" ;;
+    *)    ok "Kong reads its routes from Postgres ($routes of them)" ;;
+  esac
+  if [ "$E2E_DB" = mariadb ]; then
+    realms=$(compose exec -T mariadb mariadb -ukeycloak -pkeycloak -N -B keycloak \
+      -e "select count(*) from REALM where name = 'kong'" 2>/dev/null | tr -d ' \r')
+  else
+    realms=$(compose exec -T postgres psql -U kong -d keycloak -tAc \
+      "select count(*) from realm where name = 'kong'" 2>/dev/null | tr -d ' \r')
+  fi
+  case "${realms:-0}" in
+    ''|0) bad "the kong realm is not in $E2E_DB: Keycloak fell back to its dev store" ;;
+    *)    ok "Keycloak stores the realm in $E2E_DB" ;;
+  esac
+fi
 
 echo
 echo "==> kong-path-allow decides which paths exist at all"
@@ -240,7 +328,7 @@ fi
 
 echo
 if [ "$fails" -eq 0 ]; then
-  echo "OK: end-to-end${KONG_VERSION:+ (Kong $KONG_VERSION)} — $IMAGE"
+  echo "OK: end-to-end${KONG_VERSION:+ (Kong $KONG_VERSION)}, storage $E2E_DB — $IMAGE"
   exit 0
 fi
 echo "RED: $fails end-to-end check(s) failed"
