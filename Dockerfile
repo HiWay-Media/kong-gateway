@@ -39,6 +39,23 @@ USER root
 
 ARG RS=https://luarocks.org/manifests
 
+# oidcify replaces kong-oidc on Kong >= 3.x. It is not a Lua rock: it is a Go binary that Kong runs
+# as an external plugin server (KONG_PLUGINSERVER_*), which is a real change in operating model —
+# one more process, and authentication stops if it dies.
+#
+# It was chosen over forking kong-oidc because every Lua fork on offer is already dead: nokia/
+# kong-oidc is archived and its README says not to use it in production, and revomatico/kong-oidc,
+# the best-known 3.x fork, is archived too. oidcify is maintained (releases roughly monthly) and
+# Apache-2.0, but it carries one maintainer: that is a known risk, taken with eyes open, not a
+# guarantee bought.
+#
+# Version and checksums are pinned per architecture: a release asset can be replaced upstream, and
+# this one lands on the authentication path.
+ARG OIDCIFY_VERSION=1.3.10
+ARG OIDCIFY_SHA256_AMD64=af24422b5437939ba8a42381ae08e07cf46491a2c2ecc64facc79282313c155b
+ARG OIDCIFY_SHA256_ARM64=e4f70ae8bd594bff2667a8bd8f9d4f654aa6509ecd7979faba21e29b824d152b
+ARG TARGETARCH
+
 RUN set -eux; \
     apt-get update; \
     # curl: kong:3.9.3-ubuntu ships no downloader at all, and LuaRocks 3.12.2 does not say so —
@@ -60,8 +77,36 @@ RUN set -eux; \
         luarocks install --deps-mode=none "${RS}/seifchen/kong-path-allow-0.1-3.rockspec"; \
     fi
 
-# ⚠️ The >= 3 branch deliberately installs only kong-path-allow: oidc and jwt-keycloak have no
-# chosen replacement yet. A 3.x build FAILS its smoke test until that decision is made. That is
-# intentional — a red build tells the truth better than an image claiming to be ready.
+RUN set -eux; \
+    KONG_MAJOR="${KONG_VERSION%%.*}"; \
+    if [ "$KONG_MAJOR" -lt 3 ]; then exit 0; fi; \
+    ARCH="${TARGETARCH:-amd64}"; \
+    case "$ARCH" in \
+        amd64) SHA="$OIDCIFY_SHA256_AMD64" ;; \
+        arm64) SHA="$OIDCIFY_SHA256_ARM64" ;; \
+        *) echo "oidcify: no pinned checksum for architecture $ARCH" >&2; exit 1 ;; \
+    esac; \
+    TGZ="oidcify_${OIDCIFY_VERSION}_linux_${ARCH}.tar.gz"; \
+    curl -fsSL -o /tmp/oidcify.tgz \
+        "https://github.com/hanlaur/oidcify/releases/download/v${OIDCIFY_VERSION}/${TGZ}"; \
+    echo "${SHA}  /tmp/oidcify.tgz" | sha256sum -c -; \
+    mkdir -p /tmp/oidcify; \
+    tar -xzf /tmp/oidcify.tgz --strip-components=1 -C /tmp/oidcify; \
+    install -m 0755 /tmp/oidcify/oidcify /usr/local/bin/oidcify; \
+    install -D -m 0644 /tmp/oidcify/LICENSE /usr/local/share/oidcify/LICENSE; \
+    rm -rf /tmp/oidcify /tmp/oidcify.tgz; \
+    /usr/local/bin/oidcify -dump >/dev/null
+
+# ⚠️ The >= 3 branch still has no replacement for jwt-keycloak, so a 3.x build FAILS its smoke test
+# even with oidcify in place. That is intentional — a red build tells the truth better than an image
+# claiming to be ready.
+#
+# oidcify is not loaded by being present: Kong must be told to run it. These belong in the runtime
+# environment, not in the image, because setting them on a 2.x image would stop Kong from starting:
+#
+#   KONG_PLUGINS=bundled,oidcify,kong-path-allow
+#   KONG_PLUGINSERVER_NAMES=oidcify
+#   KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
+#   KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
 
 USER kong

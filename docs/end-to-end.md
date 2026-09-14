@@ -59,6 +59,28 @@ password grant, is accepted with 200.
 endpoint rather than passed through. The rest of the browser flow is not simulated; the part worth
 asserting is that the request is challenged at all.
 
+## The 3.x line is a different system
+
+`run.sh` picks the declarative config and the plugin list from the Kong version, because the two
+lines are no longer the same stack:
+
+| | Kong 2.x | Kong 3.x |
+|---|---|---|
+| OIDC | `oidc` (Lua, in-process) | `oidcify` (Go, external plugin server) |
+| JWT | `jwt-keycloak` | **nothing** — no replacement chosen (M3b) |
+| Routes | `/open`, `/jwt`, `/oidc` | `/open`, `/api`, `/oidc` |
+
+On 3.x the refusals are asserted against `/api`, which sets `redirect_unauthenticated: false`: an API
+route must answer **401**, not bounce a machine client into a browser flow. `/oidc` keeps the default
+and is used to assert the redirect. The absence of a `/jwt` route is deliberate — writing one anyway
+would be the first step to forgetting that the decision is still open.
+
+!!! warning "The first request pays for a cold start"
+    Kong starts the Go plugin server lazily, on the first request that touches the plugin, and
+    anything arriving before its socket exists gets a 500. The suite waits that out explicitly rather
+    than hiding it behind a retry, because it is a real property of this plugin model: after a
+    restart, the first user through the door can see a 500.
+
 ## Running it
 
 `tests/e2e/run.sh` owns the lifecycle: it starts the stack, waits for the realm and the proxy to
@@ -69,5 +91,5 @@ failure.
 
 On an arm64 workstation the Kong image runs under emulation: set `DOCKER_PLATFORM=linux/amd64`.
 
-In CI this runs as its own job, and the publish matrix depends on it: nothing reaches the registry
-before the plugins have been shown to decide.
+In CI this runs as its own job, once per Kong line, and the publish matrix depends on it: nothing
+reaches the registry before the plugins have been shown to decide.

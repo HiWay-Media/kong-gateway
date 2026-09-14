@@ -26,8 +26,17 @@ if [ "$KONG_MAJOR" -lt 3 ]; then
   done
   PLUGINS="jwt-keycloak oidc kong-path-allow"
 else
-  echo "==> Kong >= 3: no replacement chosen yet for oidc and jwt-keycloak"
-  fail "3.x build is not publishable — see docs, 'The open decision'"
+  echo "==> Kong >= 3: oidcify replaces oidc"
+  # oidcify is not a rock: it is a Go binary Kong runs as an external plugin server. Running its
+  # schema dump proves more than `test -x` — it proves the binary executes on this base image and
+  # that Kong will get a schema when it asks for one at startup.
+  run 'test -x /usr/local/bin/oidcify' || fail "oidcify binary missing"
+  run '/usr/local/bin/oidcify -dump' >/dev/null 2>&1 || fail "oidcify does not run on this image"
+  run '/usr/local/bin/oidcify -dump' 2>/dev/null | grep -q '"Name":"oidcify"' \
+    || fail "oidcify dumped no usable schema"
+  echo "==> Kong >= 3: jwt-keycloak still has no replacement"
+  PLUGINS="kong-path-allow"
+  fail "3.x build is not publishable — jwt-keycloak has no Kong 3.x replacement; see docs, 'The open decision'"
 fi
 
 echo "==> Lua modules actually load"

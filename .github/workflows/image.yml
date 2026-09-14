@@ -55,19 +55,26 @@ jobs:
   # published before the plugins have been shown to DECIDE, not merely to load.
   e2e:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Both lines, because they are no longer the same system: 2.x runs the Lua oidc and
+      # jwt-keycloak plugins, 3.x runs oidcify as an external plugin server and has no
+      # jwt-keycloak at all. A green 2.x says nothing about the 3.x one.
+      matrix:
+        kong: ['2.8.5', '3.9.3']
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Build the 2.x image
+      - name: Build the image
         uses: docker/build-push-action@v6
         with:
           context: .
           load: true
-          build-args: KONG_VERSION=2.8.5
-          tags: kong-gateway:e2e
-          cache-from: type=gha,scope=2.8.5
+          build-args: KONG_VERSION=${{ matrix.kong }}
+          tags: kong-gateway:e2e-${{ matrix.kong }}
+          cache-from: type=gha,scope=${{ matrix.kong }}
       - name: End-to-end
-        run: ./tests/e2e/run.sh kong-gateway:e2e 2.8.5
+        run: ./tests/e2e/run.sh kong-gateway:e2e-${{ matrix.kong }} "${{ matrix.kong }}"
 
   build:
     needs: [policy, e2e]

@@ -5,7 +5,7 @@ Three plugins beyond `bundled`. None ships with Kong.
 | Plugin | Upstream | Pinned | Kong ≥ 3.0 |
 |---|---|---|---|
 | `kong-path-allow` | [seifchen/kong-path-allow](https://github.com/seifchen/kong-path-allow), Apache 2.0, on LuaRocks | `0.1-3` | ✅ bump to **`0.2-0`**, published for the 3.x line |
-| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **none** |
+| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ✅ replaced by **[oidcify](https://github.com/hanlaur/oidcify)** `1.3.10` |
 | `jwt-keycloak` | [gbbirkisson/kong-plugin-jwt-keycloak](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak) | `1.1.0-1` | ⚠️ fork only |
 
 Supporting rocks: `lua-resty-openidc 1.7.2-1`, `lua-resty-jwt 0.2.2-0`, `lua-resty-cookie 0.1.0-1`.
@@ -46,6 +46,49 @@ no longer published on LuaRocks under that name, so this build installs it from 
     is the Kong-plugin wrapper around it that was abandoned, which is what makes "write the wrapper
     ourselves" a real option rather than a heroic one.
 
+## oidcify — the Kong 3.x replacement for oidc
+
+[hanlaur/oidcify](https://github.com/hanlaur/oidcify) `1.3.10`, Apache-2.0. Chosen because every Lua
+candidate was already dead, and because the thing that keeps dying is the *wrapper*, not the library:
+`lua-resty-openidc` is maintained and was released this month, while two successive Kong plugins
+around it have been archived.
+
+It is **not a Lua rock**. It is a Go binary built on Kong's Plugin Development Kit, which Kong starts
+as an external plugin server. The image installs it at `/usr/local/bin/oidcify`, pinned by version
+and SHA-256 per architecture; the runtime has to be told to use it:
+
+```bash
+KONG_PLUGINS=bundled,oidcify,kong-path-allow
+KONG_PLUGINSERVER_NAMES=oidcify
+KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
+KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
+```
+
+!!! warning "An empty `KONG_PLUGINSERVER_*` is not an unset one"
+    Kong reads an empty value as the boolean `true` and refuses to start:
+    `pluginserver_oidcify_start_cmd is not a string: 'true'`. On the 2.x line these variables must be
+    **absent**, not blank — which is why the compose file passes them through by bare name rather
+    than defaulting them to `""`.
+
+!!! warning "The first request pays for a cold start"
+    Kong starts the Go process lazily, on the first request that touches the plugin, and requests
+    arriving before its socket exists get **HTTP 500** —
+    `connect() to unix:/usr/local/kong/oidcify.socket failed`. It is brief and self-correcting, but
+    it is real: after a restart, the first user through the door can see a 500. Worth a warm-up
+    request in whatever starts the container.
+
+Three more things to know before this reaches anything real:
+
+- **Bus factor 1.** One maintainer, 24 stars. Alive today, with monthly releases and dependabot —
+  not an institutional guarantee. The difference from `kong-oidc` is that this one is maintained
+  *now*, not that it is safe forever.
+- **The configuration is not compatible.** Field names differ throughout: every route using `oidc`
+  is rewritten, not renamed. `redirect_unauthenticated: false` is what turns it from a browser flow
+  into an API guard that answers 401.
+- **Bearer authentication is off until an audience is allowed.** `bearer_jwt_allowed_auds` must list
+  the audience of the **ID token** — an access token carries a different one and is refused, which
+  the end-to-end test asserts on purpose.
+
 ## jwt-keycloak
 
 Validates Keycloak-issued access tokens. Reads its own priority from an environment variable at load
@@ -60,8 +103,9 @@ worth knowing before it is put on an authentication path.
 
 The Kong 3.x build installs only `kong-path-allow` and then **fails its smoke test on purpose**.
 
-`oidc` and `jwt-keycloak` have no chosen replacement. Both candidate paths are forks of abandoned
-projects, and both sit on the **authentication** path.
+**`oidc` is decided: oidcify** (above). What remains open is `jwt-keycloak`, and it sits on the same
+**authentication** path, with the same shape of problem: the upstream is archived and the only
+non-archived fork is small and lightly used.
 
 Measured on 2026-09-14, so the decision starts from facts rather than impressions:
 
@@ -81,8 +125,11 @@ over a maintained library, does not.
     It moves the debt rather than settling it. The work is real either way — but it should be chosen
     deliberately, with the tradeoff stated, not drifted into because an upgrade needed a green build.
 
-A worthwhile question to settle first: if the two plugins overlap in what they actually do across
-your routes, consolidating on one is cheaper than porting both.
+A worthwhile question to settle first, and it is now sharper than it was: oidcify validates bearer
+ID tokens itself. If the routes carrying `jwt-keycloak` only need signature, issuer and audience
+checks, they may not need a second plugin at all — consolidating on one is cheaper than adopting
+another unmaintained fork.
 
-Until that decision is made, the red 3.x build is the correct output. A build that fails tells the
-truth better than an image that claims to be ready.
+Until that decision is made, the 3.x image stays unpublishable: `M3b` is declared `XFAIL`, the
+publish gate reads that, and a release tag skips the 3.x line on its own. A build that refuses to
+ship tells the truth better than an image that claims to be ready.

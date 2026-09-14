@@ -1,0 +1,62 @@
+# Declarative config for the Kong 3.x stack.
+#
+# Two differences from the 2.x file, and both are the point of this whole exercise:
+#   - `oidc` is gone, replaced by `oidcify`, which is not a Lua plugin but a Go binary Kong runs as
+#     an external plugin server;
+#   - there is no `/jwt` route, because jwt-keycloak still has no Kong 3.x replacement. Its absence
+#     here is deliberate: the 3.x image is not publishable yet, and pretending otherwise in the test
+#     config would be the first step to forgetting.
+_format_version: "3.0"
+
+# oidcify attributes a successful request to a Kong consumer, which must exist.
+consumers:
+  - username: oidcuser
+
+services:
+  - name: upstream
+    url: http://upstream:80
+    routes:
+      - name: open
+        paths: ['/open']
+        plugins:
+          - name: kong-path-allow
+            config:
+              allow_paths: ['/allowed']
+              regex: true
+
+      # API style: no browser anywhere, so an unusable token must produce 401 rather than a redirect.
+      # This is the route the refusals are asserted against — a challenge that redirects tells you
+      # far less than one that refuses.
+      - name: api
+        paths: ['/api']
+        plugins:
+          - name: oidcify
+            config:
+              issuer: http://keycloak:8080/realms/kong
+              client_id: kong-e2e
+              client_secret: kong-e2e-secret
+              redirect_uri: http://127.0.0.1:18000/api/cb
+              consumer_name: oidcuser
+              bearer_jwt_allowed_auds: ['kong-e2e']
+              redirect_unauthenticated: false
+              cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+              cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100
+
+      # Browser style: an unauthenticated request starts the authorization code flow.
+      - name: oidc
+        paths: ['/oidc']
+        plugins:
+          - name: oidcify
+            config:
+              issuer: http://keycloak:8080/realms/kong
+              client_id: kong-e2e
+              client_secret: kong-e2e-secret
+              redirect_uri: http://127.0.0.1:18000/oidc/cb
+              consumer_name: oidcuser
+              # Bearer JWT authentication is OFF unless an audience is allowed. oidcify validates the
+              # ID token, whose `aud` is the client id — an access token (aud: account) is refused,
+              # which is the behaviour worth asserting rather than assuming.
+              bearer_jwt_allowed_auds: ['kong-e2e']
+              # Fixed so a restart does not invalidate every session; in production these are secrets.
+              cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+              cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100

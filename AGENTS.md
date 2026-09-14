@@ -98,10 +98,10 @@ Then add it to `docs/milestones.md` under the same identifier.
 
 ## Open decisions — do not close them by drift
 
-On Kong >= 3.0, `oidc` (nokia/kong-oidc — archived, and its README says not to use it in
-production) and `jwt-keycloak`
-(gbbirkisson, archived) have no chosen replacement. They sit on the **authentication path**:
-swapping abandoned forks for other abandoned forks is not a net security gain.
+On Kong >= 3.0, `oidc` is settled: oidcify, a maintained Go plugin server, with its trade-offs
+written up in [docs/plugins.md](docs/plugins.md). `jwt-keycloak` (gbbirkisson, archived) still has
+none. It sits on the **authentication path**: swapping abandoned forks for other abandoned forks is
+not a net security gain.
 
 An agent does not pick the fork on behalf of whoever operates the service. It may gather the
 candidates, diff them against `reference/`, report how maintained each one is — and leave the

@@ -26,6 +26,41 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.4.0] - 2026-09-14
+
+### Added
+- **`oidcify` replaces `oidc` on Kong 3.x** ([hanlaur/oidcify](https://github.com/hanlaur/oidcify)
+  `1.3.10`, Apache-2.0), installed from the release archive and pinned by SHA-256 **per
+  architecture**. Half of the M3 decision is now taken, and taken for a stated reason: every Lua
+  candidate is archived, while `lua-resty-openidc` — the library they all wrap — is maintained. The
+  wrappers keep dying; the library does not.
+- **The end-to-end suite now covers both lines.** On 3.x it drives oidcify against a real Keycloak:
+  a malformed token, an invalid signature and a genuine token with the **wrong audience** are each
+  refused with 401 before a real ID token is accepted and reaches the upstream, and a
+  credential-less request on the browser route is redirected to the provider. The `e2e` CI job runs
+  as a matrix over `2.8.5` and `3.9.3`.
+- **M3b**, the half of the decision still open: `jwt-keycloak` has no Kong 3.x replacement, stays
+  `XFAIL`, and keeps the 3.x image unpublishable on its own.
+
+### Changed
+- M3 now asserts oidcify is installed, runs on the base image, answers Kong's schema query, and that
+  the abandoned Lua `oidc` plugin is **not** shipped beside it.
+- The 3.x branch of `tests/smoke.sh` checks oidcify instead of failing immediately, then still fails
+  — for the one remaining reason, named.
+
+### Fixed
+- `tests/e2e/run.sh` forces container recreation. A bind-mounted config file changing does not make
+  compose replace a running container, so a stale stack from an earlier run served the previous
+  declarative config while the suite reported on the current one — a confident, wrong red.
+
+### Security
+- Two operational properties of the plugin-server model, both found by running it and both now
+  documented rather than discovered in production: an **empty** `KONG_PLUGINSERVER_*` variable is
+  read by Kong as the boolean `true` and stops it starting, so the 2.x line requires those variables
+  to be absent rather than blank; and the Go process starts **lazily**, so the first request after a
+  restart can get a 500 while its socket does not yet exist.
+- oidcify carries a single maintainer. That is recorded next to the decision, not hidden by it.
+
 ## [1.3.2] - 2026-09-14
 
 ### Fixed

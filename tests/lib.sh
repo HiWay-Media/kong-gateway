@@ -74,6 +74,7 @@ has_rock() {
   esac
 }
 has_file()  { run "test -f '$1'"; }
+lacks_file(){ ! run "test -f '$1'"; }
 file_has()  { run "grep -q '$2' '$1'"; }
 lua_loads() { run "resty -e 'require(\"$1\")'"; }
 

@@ -40,16 +40,25 @@ services:
     # The kong:*-ubuntu bases are amd64-only; on an arm64 workstation this runs under emulation.
     platform: ${KONG_PLATFORM:-linux/amd64}
     depends_on: [upstream, keycloak]
+    # List form on purpose: a bare name is passed through only when it is set in the environment.
+    # An EMPTY KONG_PLUGINSERVER_* is not the same as an unset one — Kong reads it as the boolean
+    # true and refuses to start with "pluginserver_oidcify_start_cmd is not a string: 'true'". With
+    # the mapping form there is no way to leave a key out, so the 2.x line could not start at all.
     environment:
-      KONG_DATABASE: 'off'
-      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
-      KONG_PLUGINS: bundled,jwt-keycloak,oidc,kong-path-allow
-      KONG_PROXY_LISTEN: 0.0.0.0:8000
-      KONG_ADMIN_LISTEN: 'off'
-      KONG_LOG_LEVEL: notice
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/kong/kong.yml
+      # Set per Kong major by tests/e2e/run.sh: the 3.x line runs oidcify, which is a Go binary Kong
+      # starts as an external plugin server rather than a Lua module it loads.
+      - KONG_PLUGINS=${KONG_PLUGINS_LIST:-bundled,jwt-keycloak,oidc,kong-path-allow}
+      - KONG_PROXY_LISTEN=0.0.0.0:8000
+      - KONG_ADMIN_LISTEN=off
+      - KONG_LOG_LEVEL=notice
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_PLUGINSERVER_NAMES
+      - KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD
+      - KONG_PLUGINSERVER_OIDCIFY_START_CMD
     volumes:
-      - ./kong/kong.yml:/kong/kong.yml:ro
+      - ${KONG_CONFIG:-./kong/kong.yml}:/kong/kong.yml:ro
     ports:
       - '127.0.0.1:18000:8000'

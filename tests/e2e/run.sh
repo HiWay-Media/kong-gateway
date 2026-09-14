@@ -17,8 +17,28 @@ PROXY=http://127.0.0.1:18000
 IDP=http://127.0.0.1:18080
 ISSUER=http://keycloak:8080/realms/kong
 
+KONG_MAJOR="${KONG_VERSION%%.*}"
+KONG_MAJOR="${KONG_MAJOR:-2}"
+
 export KONG_IMAGE="$IMAGE"
 export KONG_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
+
+# The two lines are not the same system, and the test says so out loud rather than papering over it.
+# 2.x runs the Lua oidc and jwt-keycloak plugins; 3.x runs oidcify, a Go binary Kong starts as an
+# external plugin server, and has no jwt-keycloak at all.
+if [ "$KONG_MAJOR" -ge 3 ]; then
+  export KONG_CONFIG=./kong/kong.3x.yml
+  export KONG_PLUGINS_LIST=bundled,oidcify,kong-path-allow
+  export KONG_PLUGINSERVER_NAMES=oidcify
+  export KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
+  export KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
+else
+  export KONG_CONFIG=./kong/kong.yml
+  export KONG_PLUGINS_LIST=bundled,jwt-keycloak,oidc,kong-path-allow
+  # Explicitly unset, not set to empty: Kong reads an empty KONG_PLUGINSERVER_* as the boolean true
+  # and then refuses to start. Inherited from an earlier shell, these would break the 2.x line.
+  unset KONG_PLUGINSERVER_NAMES KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD KONG_PLUGINSERVER_OIDCIFY_START_CMD
+fi
 
 compose() { docker compose -f "$HERE/docker-compose.yml" "$@"; }
 
@@ -49,6 +69,15 @@ wait_for() {
   return 1
 }
 
+# Asks Keycloak for tokens as alice. <field> is access_token or id_token: oidcify validates the ID
+# token, jwt-keycloak the access token, and sending the wrong one is an easy way to spend an hour.
+token_for() {
+  curl -s -X POST "$IDP/realms/kong/protocol/openid-connect/token" \
+    -d grant_type=password -d client_id=kong-e2e -d client_secret=kong-e2e-secret \
+    -d scope=openid -d username=alice -d password=alice-password \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))" 2>/dev/null
+}
+
 # expects <description> <status> <curl args...>
 expects() {
   local desc="$1" want="$2"; shift 2
@@ -58,7 +87,11 @@ expects() {
 }
 
 echo "==> starting the stack with $IMAGE"
-compose up -d --quiet-pull >/dev/null || { echo "FAIL: the stack did not start"; exit 1; }
+# --force-recreate, because a bind-mounted config file changing does not make compose replace a
+# running container: a stack left over from an earlier run would be reused, serving the previous
+# declarative config while reporting on the current one. That produced a confident, wrong red once
+# already — the routes were 404 because they belonged to a container nobody had noticed was stale.
+compose up -d --quiet-pull --force-recreate >/dev/null || { echo "FAIL: the stack did not start"; exit 1; }
 
 wait_for "$IDP/realms/kong/.well-known/openid-configuration" "Keycloak realm" || exit 1
 wait_for "$PROXY/open/allowed" "Kong proxy" || exit 1
@@ -79,37 +112,90 @@ else
   bad "the 200 did not come from the upstream — Kong answered on its own"
 fi
 
-echo
-echo "==> jwt-keycloak refuses before it accepts"
-expects "no token is refused" 401 "$PROXY/jwt/anything"
-expects "a malformed token is refused" 401 -H 'Authorization: Bearer not-a-jwt' "$PROXY/jwt/anything"
-# Correctly formed, signed by nobody: this is the case a plugin that only parses would let through.
-FORGED='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImV4cCI6NDEwMjQ0NDgwMH0.bm90LWEtc2lnbmF0dXJl'
-expects "a well-formed token with an invalid signature is refused" 401 \
-  -H "Authorization: Bearer $FORGED" "$PROXY/jwt/anything"
+if [ "$KONG_MAJOR" -lt 3 ]; then
+  echo
+  echo "==> jwt-keycloak refuses before it accepts"
+  expects "no token is refused" 401 "$PROXY/jwt/anything"
+  expects "a malformed token is refused" 401 -H 'Authorization: Bearer not-a-jwt' "$PROXY/jwt/anything"
+  # Correctly formed, signed by nobody: this is the case a plugin that only parses would let through.
+  FORGED='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImV4cCI6NDEwMjQ0NDgwMH0.bm90LWEtc2lnbmF0dXJl'
+  expects "a well-formed token with an invalid signature is refused" 401 \
+    -H "Authorization: Bearer $FORGED" "$PROXY/jwt/anything"
 
-TOKEN=$(curl -s -X POST "$IDP/realms/kong/protocol/openid-connect/token" \
-  -d grant_type=password -d client_id=kong-e2e -d client_secret=kong-e2e-secret \
-  -d username=alice -d password=alice-password \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null)
+  TOKEN=$(token_for access_token)
+  if [ -z "$TOKEN" ]; then
+    bad "Keycloak issued no token — the realm import or the client is wrong"
+  else
+    ok "Keycloak issued a token for alice"
+    expects "a real token from the realm is accepted" 200 \
+      -H "Authorization: Bearer $TOKEN" "$PROXY/jwt/anything"
+  fi
 
-if [ -z "$TOKEN" ]; then
-  bad "Keycloak issued no token — the realm import or the client is wrong"
+  echo
+  echo "==> oidc starts an authorization code flow instead of passing the request through"
+  LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
+  case "$LOCATION" in
+    "$ISSUER"/protocol/openid-connect/auth*) ok "an unauthenticated request is redirected to the identity provider" ;;
+    "") bad "no redirect: the request was not challenged at all" ;;
+    *)  bad "redirected somewhere unexpected: $LOCATION" ;;
+  esac
 else
-  ok "Keycloak issued a token for alice"
-  expects "a real token from the realm is accepted" 200 \
-    -H "Authorization: Bearer $TOKEN" "$PROXY/jwt/anything"
-fi
+  # oidcify is an external plugin server: Kong starts the Go process lazily, on the first request
+  # that touches the plugin, and requests arriving before its socket exists get a 500. That is a
+  # real operational property of this plugin model, not a flake — it is waited out here and written
+  # down in the docs, rather than hidden behind a retry.
+  echo
+  echo "==> waiting for the oidcify plugin server to come up (cold start)"
+  for _ in $(seq 1 30); do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$PROXY/api/anything")
+    [ "$code" = "500" ] || break
+    sleep 1
+  done
+  [ "$code" = "500" ] && bad "the oidcify plugin server never came up" \
+                      || ok "the plugin server answered after $code on a credential-less request"
 
-echo
-echo "==> oidc starts an authorization code flow instead of passing the request through"
-LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
-case "$LOCATION" in
-  "$ISSUER"/protocol/openid-connect/auth*|http://keycloak:8080/realms/kong/protocol/openid-connect/auth*)
-    ok "an unauthenticated request is redirected to the identity provider" ;;
-  "") bad "no redirect: the request was not challenged at all" ;;
-  *)  bad "redirected somewhere unexpected: $LOCATION" ;;
-esac
+  echo
+  echo "==> oidcify refuses before it accepts (API route: refusals, not redirects)"
+  expects "no token is refused" 401 "$PROXY/api/anything"
+  expects "a malformed bearer token is refused" 401 \
+    -H 'Authorization: Bearer not-a-jwt' "$PROXY/api/anything"
+  FORGED='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImF1ZCI6ImtvbmctZTJlIiwiZXhwIjo0MTAyNDQ0ODAwfQ.bm90LWEtc2lnbmF0dXJl'
+  expects "a well-formed bearer token with an invalid signature is refused" 401 \
+    -H "Authorization: Bearer $FORGED" "$PROXY/api/anything"
+
+  # The access token is genuine and signed by the realm, but carries a different audience than the
+  # ID token. An audience check that never refuses anything is not a check.
+  ACCESS=$(token_for access_token)
+  if [ -n "$ACCESS" ]; then
+    expects "a genuine token with the wrong audience is refused" 401 \
+      -H "Authorization: Bearer $ACCESS" "$PROXY/api/anything"
+  else
+    bad "Keycloak issued no access token"
+  fi
+
+  ID_TOKEN=$(token_for id_token)
+  if [ -z "$ID_TOKEN" ]; then
+    bad "Keycloak issued no ID token — the client may not have the openid scope"
+  else
+    ok "Keycloak issued an ID token for alice"
+    expects "a real ID token from the realm is accepted" 200 \
+      -H "Authorization: Bearer $ID_TOKEN" "$PROXY/api/anything"
+    if curl -fsS -H "Authorization: Bearer $ID_TOKEN" "$PROXY/api/anything" | grep -q '"upstream":"reached"'; then
+      ok "the authenticated request reached the upstream"
+    else
+      bad "the authenticated request did not reach the upstream"
+    fi
+  fi
+
+  echo
+  echo "==> on the browser route, a request with no credentials starts the authorization code flow"
+  LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
+  case "$LOCATION" in
+    "$ISSUER"/protocol/openid-connect/auth*) ok "an unauthenticated request is redirected to the identity provider" ;;
+    "") bad "no redirect: the request was not challenged at all" ;;
+    *)  bad "redirected somewhere unexpected: $LOCATION" ;;
+  esac
+fi
 
 echo
 if [ "$fails" -eq 0 ]; then

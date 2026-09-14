@@ -24,7 +24,7 @@ this Dockerfile produces what was actually running.
 | Plugin | Origin | In the 2.0.3 image | For Kong ≥ 3.0 |
 |---|---|---|---|
 | `kong-path-allow` | [seifchen](https://github.com/seifchen/kong-path-allow), Apache 2.0, public on LuaRocks | `0.1-3` | ✅ **`0.2-0`**, published for the 3.x line |
-| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ⛔ **none** — archived, README says not for production. Uses `BasePlugin`, removed in 3.0 |
+| `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ✅ replaced by **[oidcify](https://github.com/hanlaur/oidcify)** `1.3.10` — a Go plugin server, not a rock |
 | `jwt-keycloak` | [gbbirkisson](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak), archived | `1.1.0-1` | ⚠️ [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork, to evaluate |
 | `lua-resty-openidc` | dependency of `kong-oidc` | `1.7.2-1` | depends on the fork chosen |
 
@@ -55,8 +55,10 @@ State lives in [docs/milestones.md](docs/milestones.md); working rules, for peop
 
 ## ⛔ The open decision
 
-**The 3.x build does not pass, and that is declared.** On 3.x the `Dockerfile` installs only
-`kong-path-allow`: `oidc` and `jwt-keycloak` have no chosen replacement (milestone `M3`, `XFAIL`).
+**The 3.x build does not pass yet, and that is declared.** `oidc` is settled — oidcify replaces it,
+and the end-to-end suite proves it refuses and accepts the right things (milestone `M3`, green).
+`jwt-keycloak` still has no chosen replacement (milestone `M3b`, `XFAIL`), so the 3.x image stays
+unpublishable and a release tag skips that line by itself.
 
 A goal declared missing is better than an image that claims to be ready and is not. Once the
 decision is made — which fork, or whether to consolidate both plugins into one — the line is added,

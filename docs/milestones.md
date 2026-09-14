@@ -21,8 +21,9 @@ Runner results:
 | **M0** | Reproducible recipe | `M0-reproducible-recipe.sh` | 🟢 `PASS` (2.8.5 and 3.9.3) |
 | **M1** | Parity with the extracted baseline | `M1-parity-with-baseline.sh` | 🟢 `PASS` — 14 of 14 modules |
 | **M2** | 2.x image publishable | `M2-publishable-2x.sh` | 🟢 `PASS` |
-| **M3** | Replacement chosen for `oidc` and `jwt-keycloak` on 3.x | `M3-replacement-chosen-3x.sh` | 🟡 `XFAIL` — open decision |
-| **M4** | 3.x image publishable | `M4-publishable-3x.sh` | 🟡 `XFAIL` — depends on M3 |
+| **M3** | Replacement chosen for `oidc` on 3.x — **oidcify** | `M3-oidc-replacement-3x.sh` | 🟢 `PASS` |
+| **M3b** | Replacement chosen for `jwt-keycloak` on 3.x | `M3b-jwt-keycloak-replacement-3x.sh` | 🟡 `XFAIL` — open decision |
+| **M4** | 3.x image publishable | `M4-publishable-3x.sh` | 🟡 `XFAIL` — depends on M3b |
 
 An unmet milestone also blocks publishing: `tests/run.sh` reports `publishable` per Kong version,
 false while any milestone is `XFAIL`, and the workflow's publish steps are gated on it. A `v*` tag
@@ -94,34 +95,52 @@ That last one is the one that matters. `kong-path-allow` is an **authorization**
 authorization control is verified by the case it must refuse. A plugin that loads but no longer
 blocks anything passes every healthcheck and is invisible to whoever pulls the image.
 
-## M3 — Replacement chosen for `oidc` and `jwt-keycloak` on Kong 3.x
+## M3 — Replacement chosen for `oidc` on Kong 3.x
 
-**Exit criterion.** On a Kong >= 3.0 image, `kong/plugins/oidc/handler.lua` and
-`kong/plugins/jwt-keycloak/handler.lua` exist, whatever rock provides them.
+**Exit criterion.** On a Kong >= 3.0 image the `oidcify` binary is installed, runs on that base image
+and answers Kong's schema query — and the abandoned Lua `oidc` plugin is **not** shipped next to it.
 
-**This is the repository's open decision, and it is `XFAIL` on purpose.**
+**Decided on 2026-09-14: [oidcify](https://github.com/hanlaur/oidcify) `1.3.10`**, pinned by SHA-256
+per architecture. `PASS`.
 
-- `nokia/kong-oidc` is **archived**, and its README states it is not maintained and not
-  recommended in production. Last code change: June 2019. It also uses `BasePlugin`, removed in
-  Kong 3.0.
-- `gbbirkisson/kong-plugin-jwt-keycloak` is archived; the
-  [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork exists and is
-  worth evaluating.
+The decision was not between good options. Every Lua candidate was already dead: `nokia/kong-oidc` is
+archived with a README saying not to use it in production, and `revomatico/kong-oidc` — the
+best-known Kong 3.x fork — is archived too. What is *not* dead is `lua-resty-openidc`, the library
+both of them wrap. The wrappers keep being abandoned; the library does not.
 
-⚠️ Replacing abandoned forks with **other** abandoned forks, on the authentication path, is not a
-net security gain. Three options remain on the table, and the third should not be dismissed by
-inertia: adopt a maintained fork, consolidate both plugins into one written in-house (`plugins/` is
-empty for exactly that), or move the function out of Kong altogether.
+oidcify is maintained and Apache-2.0, and it is a different kind of thing: a Go binary Kong runs as
+an external plugin server. That is one more process, a cold start on the first request, and a single
+maintainer. Those costs are listed in [Plugins](plugins.md#oidcify-the-kong-3x-replacement-for-oidc)
+rather than buried here, because they are what a future reader will need when deciding whether to
+keep it.
 
-Once decided, the line goes into the `Dockerfile`, the test turns `XPASS` — that is, red — and stays
-red until this file records **which** fork was chosen and **why**.
+What makes this a decision rather than a hope: the [end-to-end suite](end-to-end.md) drives it with a
+real identity provider on the 3.x line, and asserts that it refuses a malformed token, an invalid
+signature and a genuine token with the wrong audience before it accepts a real one.
+
+## M3b — Replacement chosen for `jwt-keycloak` on Kong 3.x
+
+**Exit criterion.** A `jwt-keycloak` handler exists on a Kong >= 3.0 image, from whatever rock
+provides it.
+
+**Still open, and `XFAIL` on purpose.** `gbbirkisson/kong-plugin-jwt-keycloak` is archived; the
+[Platformatory fork](https://github.com/Platformatory/kong-plugin-jwt-keycloak) claims 3.x support
+but is small and lightly used — 4 stars, last pushed July 2024 — which is worth knowing before it
+goes on an authentication path.
+
+⚠️ A question worth settling before picking a fork, and sharper now that oidcify is in: oidcify
+validates bearer ID tokens itself. If the routes carrying `jwt-keycloak` only need signature, issuer
+and audience checks, they may not need a second plugin at all. Consolidating is cheaper than adopting
+another unmaintained fork — and it is the option that does not have to be revisited in two years.
 
 ## M4 — 3.x image publishable
 
-**Exit criterion:** the same gate as M2, on a Kong >= 3.0 image. `XFAIL` today: without replacements
-for `oidc` and `jwt-keycloak` the gate refuses to call it publishable, which is correct.
+**Exit criterion:** the same gate as M2, on a Kong >= 3.0 image. `XFAIL` today: `oidc` is settled
+(M3) but `jwt-keycloak` is not (M3b), and the gate refuses to call the image publishable while one
+of its authentication plugins has no replacement. The publish steps read that, so a release tag
+publishes the 2.x line and skips 3.x without anyone having to remember.
 
 On Kong 3.x a handler without `VERSION` does not load. On 2.x it does — which is exactly why a
 missing one went unnoticed for years.
 
-Entirely dependent on M3.
+Entirely dependent on M3b.
