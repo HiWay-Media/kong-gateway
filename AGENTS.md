@@ -31,6 +31,7 @@ that builds but whose contents nobody can account for is the starting point, not
 | `docs/backlog.md` | Known work, with the reason attached. One section per item, parsed |
 | `docs/roadmap.md` | **Generated.** Milestone state from the tests, plus the open backlog |
 | `scripts/backlog.py` | Lints the backlog and renders the roadmap (`lint`, `render`, `check`) |
+| `scripts/sync-github.py` | Mirrors backlog and milestones into GitHub issues and milestones (`--apply`) |
 | `.github/workflows/image.yml` | 2.x/3.x build matrix, tests, and publishing from tags only |
 | `plugins/` | Empty: for a plugin written in-house, should one ever be needed |
 
@@ -85,6 +86,19 @@ python3 scripts/backlog.py check    # what CI runs
 An item without a *Done when* is a complaint, not a task: nobody can tell when to stop. The lint
 rejects it. The roadmap is generated from the milestone **tests** and this file, so it cannot
 disagree with either — and CI fails if it was not regenerated.
+
+To make the same work visible on GitHub:
+
+```bash
+python3 scripts/sync-github.py           # show what would change
+python3 scripts/sync-github.py --apply   # create and update issues and milestones
+```
+
+The repository stays the source of truth and GitHub is a view of it: issues are matched by their
+`BL-xx` prefix, so the sync updates rather than duplicates, and an item marked `done` or `dropped`
+closes its issue. Editing an issue body on GitHub is pointless — the next sync overwrites it, which
+is deliberate: an issue tracker that disagrees with the repository is worse than an empty one,
+because people trust it.
 
 ### Adding a milestone
 
