@@ -132,7 +132,10 @@ Then add it to `docs/milestones.md` under the same identifier.
    are permitted: a test that only proves the module loads would pass even if it stopped blocking
    anything. This holds for any plugin on the auth path.
 7. **No secrets in the repository or in image layers.** Registry credentials come from the workflow.
-8. **A variant never takes a plain tag.** `2.8.5` means the image that reproduces production, and
+8. **No tool-attribution footers** — not in commits, pull request descriptions, issues or
+   documents, and not quoted verbatim when writing the rule itself. A commit message explains why a
+   change was made; a tool signature explains nothing.
+9. **A variant never takes a plain tag.** `2.8.5` means the image that reproduces production, and
    `latest` follows the default line only: a deployment must never be moved onto a different
    authentication plugin by a publish. `tests/policy.sh` asserts it.
 
