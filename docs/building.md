@@ -103,6 +103,16 @@ Each file in `tests/milestones/` holds one exit criterion. A milestone not reach
 passing the runner goes red (`XPASS`) until the declaration is dropped and [`milestones.md`](milestones.md) updated,
 so that neither a normalised red nor an unrecorded green can sit there unnoticed.
 
+## Running it by hand
+
+```bash
+scripts/run-local.sh up
+```
+
+Starts the gateway with a real Keycloak behind it and leaves it running — see
+[Running locally](running-locally.md). The end-to-end suite starts the same stack and tears it down;
+this one stays out of the way.
+
 ## Beyond the image
 
 The smoke test and the milestones inspect an image. [End-to-end](end-to-end.md) runs the whole

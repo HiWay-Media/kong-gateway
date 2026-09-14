@@ -32,45 +32,9 @@ PROXY=http://127.0.0.1:18000
 IDP=http://127.0.0.1:18080
 ISSUER=http://keycloak:8080/realms/kong
 
-KONG_MAJOR="${KONG_VERSION%%.*}"
-KONG_MAJOR="${KONG_MAJOR:-2}"
-
-export KONG_IMAGE="$IMAGE"
-export KONG_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
-
-# Which OIDC implementation this image carries, asked of the image rather than passed in: a test
-# that is TOLD what to expect cannot notice that the build produced something else.
-OIDC_PROVIDER=$(docker run --rm ${DOCKER_PLATFORM:+--platform $DOCKER_PLATFORM} \
-  --entrypoint sh "$IMAGE" -c 'cat /usr/local/share/kong-gateway-oidc-provider 2>/dev/null' \
-  2>/dev/null | tr -d '\r\n')
-OIDC_PROVIDER="${OIDC_PROVIDER:-kong-oidc}"
-
-# The two lines are not the same system, and the test says so out loud rather than papering over it.
-# 2.x runs the Lua oidc and jwt-keycloak plugins; 3.x runs oidcify, a Go binary Kong starts as an
-# external plugin server, and has no jwt-keycloak at all.
-if [ "$OIDC_PROVIDER" = oidcify ] && [ "$KONG_MAJOR" -lt 3 ]; then
-  # The variant: production's Kong and production's jwt-keycloak, with the dead OIDC plugin
-  # replaced. One change under test, not two.
-  export KONG_CONFIG=./kong/kong.2x-oidcify.yml
-  export KONG_PLUGINS_LIST=bundled,jwt-keycloak,oidcify,kong-path-allow
-  export KONG_PLUGINSERVER_NAMES=oidcify
-  export KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
-  export KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
-elif [ "$KONG_MAJOR" -ge 3 ]; then
-  export KONG_CONFIG=./kong/kong.3x.yml
-  export KONG_PLUGINS_LIST=bundled,oidcify,kong-path-allow
-  export KONG_PLUGINSERVER_NAMES=oidcify
-  export KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD="/usr/local/bin/oidcify -dump"
-  export KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
-else
-  export KONG_CONFIG=./kong/kong.yml
-  export KONG_PLUGINS_LIST=bundled,jwt-keycloak,oidc,kong-path-allow
-  # Explicitly unset, not set to empty: Kong reads an empty KONG_PLUGINSERVER_* as the boolean true
-  # and then refuses to start. Inherited from an earlier shell, these would break the 2.x line.
-  unset KONG_PLUGINSERVER_NAMES KONG_PLUGINSERVER_OIDCIFY_QUERY_CMD KONG_PLUGINSERVER_OIDCIFY_START_CMD
-fi
-
-compose() { docker compose -f "$HERE/docker-compose.yml" "$@"; }
+STACK_DIR="$HERE"
+# shellcheck source=tests/e2e/stack.sh
+. "$HERE/stack.sh"
 
 fails=0
 ok()  { printf '  ok   %s\n' "$1"; }
@@ -220,51 +184,15 @@ assert_oidcify() {
   assert_login_round_trip
 }
 
-if [ "$E2E_DB" = off ]; then
-  export KONG_DECLARATIVE_CONFIG=/kong/kong.yml
-else
-  export COMPOSE_PROFILES=db
-  # Kong: Postgres in both modes, because it has no other option.
-  export KONG_DB_MODE=postgres KONG_PG_HOST=postgres KONG_PG_USER=kong KONG_PG_PASSWORD=kong
-  export KONG_ADMIN_LISTEN_ADDR=0.0.0.0:8001
-  unset KONG_DECLARATIVE_CONFIG
-  export KC_DB=postgres KC_DB_URL_HOST=postgres KC_DB_URL_DATABASE=keycloak \
-         KC_DB_USERNAME=kong KC_DB_PASSWORD=kong
-fi
-
 echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER, storage: $E2E_DB)"
 
-if [ "$E2E_DB" != off ]; then
-  echo "==> bringing up the databases and running Kong's migrations"
-  compose up -d --quiet-pull --wait postgres >/dev/null || { echo "FAIL: Postgres did not start"; exit 1; }
-  # Migrations and the config import are a one-shot: the same declarative file both modes use, so
-  # the two are configured from one source rather than from two that drift apart.
-  compose run --rm -T kong-migrations >/dev/null || { echo "FAIL: Kong migrations failed"; exit 1; }
-fi
-# --force-recreate, because a bind-mounted config file changing does not make compose replace a
-# running container: a stack left over from an earlier run would be reused, serving the previous
-# declarative config while reporting on the current one. That produced a confident, wrong red once
-# already — the routes were 404 because they belonged to a container nobody had noticed was stale.
-compose up -d --quiet-pull --force-recreate upstream keycloak kong >/dev/null \
-  || { echo "FAIL: the stack did not start"; exit 1; }
+stack_prepare_db || { echo "FAIL: Postgres did not start, or the migrations failed"; exit 1; }
 
-if [ "$E2E_DB" != off ] && [ "$KONG_MAJOR" -ge 3 ] && [ "$OIDC_PROVIDER" = oidcify ]; then
-  echo
-  echo "FAIL: Kong $KONG_VERSION with an external plugin cannot be configured through its Admin API." >&2
-  echo "      GET / answers 500 — 'Cannot serialise cdata: type not supported' — because the schema" >&2
-  echo "      the plugin server returns contains a value Kong cannot encode, and decK reads that" >&2
-  echo "      endpoint first. Kong 2.8.5 with the same plugin answers 200; DB-less 3.x works too." >&2
-  echo "      See docs/end-to-end.md, 'Storage modes'. Run this combination without --db." >&2
-  exit 1
-fi
+stack_up || { echo "FAIL: the stack did not start"; exit 1; }
 
-if [ "$E2E_DB" != off ]; then
-  echo "==> loading the configuration into Kong with decK"
-  compose run --rm -T deck \
-    'for i in $(seq 1 40); do deck gateway ping --kong-addr http://kong:8001 >/dev/null 2>&1 && break; sleep 2; done
-     deck gateway sync /kong/kong.yml --kong-addr http://kong:8001' >/dev/null \
-    || { echo "FAIL: decK could not load the configuration"; exit 1; }
-fi
+stack_reject_unsupported || exit 1
+
+stack_load_config || { echo "FAIL: decK could not load the configuration"; exit 1; }
 
 wait_for "$IDP/realms/kong/.well-known/openid-configuration" "Keycloak realm" || exit 1
 wait_for "$PROXY/open/allowed" "Kong proxy" || exit 1
