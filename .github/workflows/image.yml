@@ -49,6 +49,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./tests/policy.sh
+      # The backlog and the roadmap: the roadmap is generated from the milestone tests and the
+      # backlog, so this fails when someone edits one and forgets the other — which is the only
+      # failure mode a roadmap really has.
+      - run: python3 scripts/backlog.py check
 
   # The system test: Keycloak issuing real tokens, an upstream to protect, and the image between
   # them. It builds its own 2.x image (the layer cache makes that cheap) because nothing should be

@@ -28,6 +28,9 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/e2e/` | The system test: Keycloak, an upstream, and the image between them. `run.sh` owns the waiting and the teardown |
 | `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
+| `docs/backlog.md` | Known work, with the reason attached. One section per item, parsed |
+| `docs/roadmap.md` | **Generated.** Milestone state from the tests, plus the open backlog |
+| `scripts/backlog.py` | Lints the backlog and renders the roadmap (`lint`, `render`, `check`) |
 | `.github/workflows/image.yml` | 2.x/3.x build matrix, tests, and publishing from tags only |
 | `plugins/` | Empty: for a plugin written in-house, should one ever be needed |
 
@@ -68,6 +71,20 @@ A milestone is not a line in a document someone will remember to update. It is a
 Step 3 looks like a nuisance and is the point of the whole mechanism: it stops a goal being reached
 without anyone noticing, and stops a red staying red until it fades into the background. The 3.x
 build, "expected to fail" with nothing tracking it, was already halfway to that.
+
+### Adding backlog work
+
+Add a section to `docs/backlog.md` — id, title, the metadata line, why it matters, and a
+**Done when** — then regenerate:
+
+```bash
+python3 scripts/backlog.py render   # rewrites docs/roadmap.md
+python3 scripts/backlog.py check    # what CI runs
+```
+
+An item without a *Done when* is a complaint, not a task: nobody can tell when to stop. The lint
+rejects it. The roadmap is generated from the milestone **tests** and this file, so it cannot
+disagree with either — and CI fails if it was not regenerated.
 
 ### Adding a milestone
 

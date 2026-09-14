@@ -26,6 +26,27 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.9.0] - 2026-09-14
+
+### Added
+- **A backlog that is checked, and a roadmap that is generated.** `docs/backlog.md` holds the known
+  work — 15 items, each with why it matters and a **Done when** — and `scripts/backlog.py` lints it
+  and renders [`docs/roadmap.md`](docs/roadmap.md) from two sources: the backlog, and the milestone
+  **tests** themselves.
+
+  The milestone table used to be typed by hand in `docs/milestones.md`, which is the arrangement
+  that file spends its first paragraph arguing against. Now the tests decide what is reached and the
+  page follows.
+- **A CI gate**: `scripts/backlog.py check` fails when the backlog is malformed or the roadmap is
+  stale — the only failure mode a roadmap really has is someone changing one and forgetting the
+  other. Standard library only, so the gate needs nothing installed.
+- The lint rejects an item without a **Done when**: without one it is a complaint, not a task, and
+  nobody can tell when to stop.
+
+### Changed
+- `docs/milestones.md` keeps the narrative and points at the generated table rather than repeating
+  it.
+
 ## [1.8.0] - 2026-09-14
 
 ### Fixed

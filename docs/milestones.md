@@ -16,19 +16,8 @@ Runner results:
 
 ## State
 
-| | Milestone | Test | State |
-|---|---|---|---|
-| **M0** | Reproducible recipe | `M0-reproducible-recipe.sh` | 🟢 `PASS` (2.8.5 and 3.9.3) |
-| **M1** | Parity with the extracted baseline | `M1-parity-with-baseline.sh` | 🟢 `PASS` — 14 of 14 modules |
-| **M2** | 2.x image publishable | `M2-publishable-2x.sh` | 🟢 `PASS` |
-| **M2b** | 2.x variant carries a maintained OIDC | `M2b-maintained-oidc-on-2x.sh` | 🟢 `PASS` |
-| **M3** | Replacement chosen for `oidc` on 3.x — **oidcify** | `M3-oidc-replacement-3x.sh` | 🟢 `PASS` |
-| **M3b** | Replacement chosen for `jwt-keycloak` on 3.x | `M3b-jwt-keycloak-replacement-3x.sh` | 🟡 `XFAIL` — open decision |
-| **M4** | 3.x image publishable | `M4-publishable-3x.sh` | 🟡 `XFAIL` — depends on M3b |
-
-An unmet milestone also blocks publishing: `tests/run.sh` reports `publishable` per Kong version,
-false while any milestone is `XFAIL`, and the workflow's publish steps are gated on it. A `v*` tag
-therefore publishes the 2.x line and skips the 3.x one, without anyone having to remember to.
+The table lives in the [Roadmap](roadmap.md), generated from these tests. It used to be kept here by
+hand, which is exactly the arrangement this file spends its first paragraph arguing against.
 
 ---
 
