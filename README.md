@@ -9,7 +9,7 @@ analisi e piano: <https://hiwaymedia.gitlab.io/teamcity-ci-cd/services/kong/upgr
 
 ## Perché questo repo esiste
 
-L'immagine in produzione fino al settembre 2026 era `registry.hiway.media/kong:2.0.3-ubuntu-oidc-jwt`.
+L'immagine in produzione fino al settembre 2026 era `/kong:2.0.3-ubuntu-oidc-jwt`.
 **Non è mai stata costruita da un Dockerfile.** `docker history` mostra due layer `docker commit`
 sopra il `kong:2.0.3-ubuntu` ufficiale: qualcuno è entrato in un container, ha installato i plugin a
 mano e ha committato. Il registry ne conteneva **una sola tag**, senza storia.
@@ -68,4 +68,4 @@ piedi dei job: è esattamente la causa radice dell'incident `s3-proxy`. La CI st
 
 ⚠️ **Prima del primo deploy** va verificato che i nodi Nomad — compresi i `dev-agent-*` — riescano a
 fare `docker pull` da `ghcr.io` senza credenziali. È la stessa verifica già aperta per `crowdsim`.
-Se il package è privato: `auth` nel blocco `Config` del job, oppure mirror su `registry.hiway.media`.
+Se il package è privato: `auth` nel blocco `Config` del job, oppure mirror su ``.

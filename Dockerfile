@@ -1,6 +1,6 @@
 # HiWay Media Kong Gateway — l'immagine che prima non aveva una ricetta.
 #
-# L'immagine in produzione fino al 2026-09 (registry.hiway.media/kong:2.0.3-ubuntu-oidc-jwt) non è
+# L'immagine in produzione fino al 2026-09 (/kong:2.0.3-ubuntu-oidc-jwt) non è
 # mai stata costruita da un Dockerfile: `docker history` mostra due layer `docker commit` sopra il
 # kong:2.0.3-ubuntu ufficiale. Non era ricostruibile, e il suo base layer scaricava Kong da bintray,
 # spento nel 2021. Questo file esiste per chiudere quel buco.
