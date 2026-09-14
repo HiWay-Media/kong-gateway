@@ -155,8 +155,14 @@ is the **authorization** half: `jwt-keycloak` also validates `scope`, `roles`, `
 a groups claim into `authenticated_groups` for Kong's bundled ACL plugin — a different shape, not a
 missing one.
 
-⚠️ So the open question is no longer *which fork to adopt* but **do any live routes use those
-validators?** If none do, this milestone closes by consolidation — no second plugin, nothing new on
+**And the replacement mechanism now works, measured the same way.** The end-to-end suite asserts,
+on the 3.x line, that a group alice belongs to lets her through and a group she does not belong to
+refuses her — oidcify putting the token's groups into `authenticated_groups`, Kong's bundled ACL
+plugin deciding. So the authorization half has a working equivalent; what it does not have is a
+mapping from the roles a live configuration uses onto groups.
+
+⚠️ So the open question is no longer *which fork to adopt*, nor even *can this be done without one*,
+but **do any live routes use those validators, and do their roles map onto groups?** If none do, this milestone closes by consolidation — no second plugin, nothing new on
 the authentication path to be abandoned in two years. If some do, the choice is between an ACL-based
 equivalent and a fork, and it is worth making with the roles in front of you.
 

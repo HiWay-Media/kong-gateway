@@ -76,6 +76,16 @@ token_for() {
     | python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))" 2>/dev/null
 }
 
+# A token from the short-lived client: its access tokens last one second, which is the only way to
+# test expiry without waiting out a realm's normal lifespan. Kong caches realm keys, not tokens, so
+# nothing else in the suite is affected.
+short_lived_token() {
+  curl -s -X POST "$IDP/realms/kong/protocol/openid-connect/token" \
+    -d grant_type=password -d client_id=kong-e2e-short -d client_secret=kong-e2e-short-secret \
+    -d scope=openid -d username=alice -d password=alice-password \
+    | python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))" 2>/dev/null
+}
+
 # expects <description> <status> <curl args...>
 expects() {
   local desc="$1" want="$2"; shift 2
@@ -172,6 +182,37 @@ assert_oidcify() {
     fi
   fi
 
+  if [ "$KONG_MAJOR" -ge 3 ]; then
+    echo
+    echo "==> an expired token is refused"
+    EXPIRING_ACC=$(short_lived_token access_token)
+    if [ -z "$EXPIRING_ACC" ]; then
+      bad "the short-lived client issued no token"
+    else
+      expects "…and it works while it is valid" 200 \
+        -H "Authorization: Bearer $EXPIRING_ACC" "$PROXY/api-access/x"
+      sleep 3
+      expects "once expired, the same token is refused" 401 \
+        -H "Authorization: Bearer $EXPIRING_ACC" "$PROXY/api-access/x"
+    fi
+
+    echo
+    echo "==> authorization by group: oidcify feeds Kong's ACL plugin, in both directions"
+    # This is the half of jwt-keycloak that oidcify does NOT replicate — it puts the token's groups
+    # into authenticated_groups and lets the bundled ACL plugin decide. If M3b closes by
+    # consolidating, this is the mechanism it would close on, so it is worth proving rather than
+    # assuming.
+    GROUP_TOKEN=$(token_for id_token)
+    if [ -z "$GROUP_TOKEN" ]; then
+      bad "Keycloak issued no ID token for the group checks"
+    else
+      expects "a group alice belongs to lets her through" 200 \
+        -H "Authorization: Bearer $GROUP_TOKEN" "$PROXY/group-ok/x"
+      expects "a group she does not belong to refuses her" 403 \
+        -H "Authorization: Bearer $GROUP_TOKEN" "$PROXY/group-no/x"
+    fi
+  fi
+
   echo
   echo "==> on the browser route, a request with no credentials starts the authorization code flow"
   LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")
@@ -225,6 +266,18 @@ expects "a path outside the allow-list is REFUSED" 403 "$PROXY/open/secret"
 expects "a path that merely starts like an allowed one is still checked" 403 "$PROXY/open/other"
 
 echo
+echo "==> how kong-path-allow actually matches, not how it reads"
+# The plugin anchors the start of the match and leaves the end open. `/public` therefore also
+# permits `/publicsecret` — for a deny list that errs safe, for an ALLOW list it errs the other way.
+# Asserted rather than described, so a change in that behaviour shows up here instead of quietly
+# widening an allow-list somebody wrote years ago.
+expects "an allowed prefix passes" 200 "$PROXY/anchor/public"
+expects "a longer path with that prefix ALSO passes — the end is not anchored" 200 \
+  "$PROXY/anchor/publicsecret"
+expects "an explicitly anchored pattern refuses the longer path" 403 "$PROXY/anchor/exactly"
+expects "…and still allows the exact one" 200 "$PROXY/anchor/exact"
+
+echo
 echo "==> the upstream is actually behind Kong, not being answered by it"
 if curl -fsS "$PROXY/open/allowed" | grep -q '"upstream":"reached"'; then
   ok "the 200 came from the upstream"
@@ -249,6 +302,30 @@ if [ "$KONG_MAJOR" -lt 3 ]; then
     ok "Keycloak issued a token for alice"
     expects "a real token from the realm is accepted" 200 \
       -H "Authorization: Bearer $TOKEN" "$PROXY/jwt/anything"
+  fi
+
+  echo
+  echo "==> an expired token is refused"
+  # Signed by the realm, well formed, correct issuer — and past its expiry. A plugin that verifies
+  # the signature but forgets `exp` passes every other check in this file.
+  EXPIRING=$(short_lived_token access_token)
+  if [ -z "$EXPIRING" ]; then
+    bad "the short-lived client issued no token"
+  else
+    expects "…and it works while it is valid" 200 \
+      -H "Authorization: Bearer $EXPIRING" "$PROXY/jwt/anything"
+    sleep 3
+    expects "once expired, the same token is refused" 401 \
+      -H "Authorization: Bearer $EXPIRING" "$PROXY/jwt/anything"
+  fi
+
+  echo
+  echo "==> jwt-keycloak enforces realm roles, in both directions"
+  if [ -n "$TOKEN" ]; then
+    expects "a role alice holds lets her through" 200 \
+      -H "Authorization: Bearer $TOKEN" "$PROXY/role-ok/x"
+    expects "a role nobody holds refuses her" 403 \
+      -H "Authorization: Bearer $TOKEN" "$PROXY/role-no/x"
   fi
 
   if [ "$OIDC_PROVIDER" = oidcify ]; then

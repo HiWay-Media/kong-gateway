@@ -17,6 +17,52 @@
       ],
       "webOrigins": [
         "*"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "kong-e2e-short",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "kong-e2e-short-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "access.token.lifespan": "1"
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
       ]
     }
   ],
@@ -34,11 +80,35 @@
       ],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-kong"
+        "default-roles-kong",
+        "kong-user"
       ],
       "firstName": "Alice",
       "lastName": "Example",
-      "email": "alice@example.invalid"
+      "email": "alice@example.invalid",
+      "groups": [
+        "/gateway-users"
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "kong-user",
+        "description": "alice has this"
+      },
+      {
+        "name": "kong-admin",
+        "description": "nobody has this, on purpose"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "gateway-users"
+    },
+    {
+      "name": "gateway-admins"
     }
   ]
 }
