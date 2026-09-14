@@ -50,6 +50,22 @@ Three routes, one plugin each, so a failing assertion names exactly one plugin:
 with 403; and the 200 is checked to have come from the upstream rather than from Kong itself,
 because "allowed" is only meaningful if the request actually went somewhere.
 
+It also pins down **how the plugin matches**, which is not how it reads: the start is anchored and
+the end is not, so `/public` permits `/publicsecret` too. The suite asserts that, and asserts that
+an end-anchored `/exact$` refuses `/exactly`. Writing the test found the documentation wrong — it
+recommended `^/public$`, which Kong's path typedef rejects outright, so the configuration would not
+load at all.
+
+**Expiry** — a token from a client whose access tokens last one second: accepted while valid,
+refused three seconds later. A plugin that verifies the signature but forgets `exp` passes every
+other check in this file.
+
+**Authorization, in both directions** — on 2.x, `jwt-keycloak` with `realm_roles` lets alice through
+a route requiring a role she holds and refuses one requiring a role nobody holds. On 3.x, where
+`jwt-keycloak` does not exist, the same shape is asserted through **oidcify + Kong's ACL plugin**:
+her group passes, another group refuses. That is the mechanism M3b would close on if the decision is
+to consolidate rather than adopt a fork — proven, rather than assumed.
+
 **`jwt-keycloak`** — refusals first: no token, a malformed token, and a well-formed token with an
 invalid signature are each refused with 401. That third case is the one worth having: a plugin that
 decodes without verifying passes the first two. Then a real token, obtained from the realm by

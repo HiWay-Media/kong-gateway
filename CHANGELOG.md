@@ -26,6 +26,35 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.15.0] - 2026-09-14
+
+### Added
+- **Expiry is tested.** A client whose access tokens last one second: accepted while valid, refused
+  three seconds later, on both Kong lines. A plugin that verifies the signature but forgets `exp`
+  passed every other check in the suite until now.
+- **Authorization is tested in both directions.** On 2.x, `jwt-keycloak` with `realm_roles` lets
+  alice through a route requiring a role she holds and refuses one requiring a role nobody holds. On
+  3.x, the same shape through **oidcify + Kong's ACL plugin**: her group passes, another refuses.
+  An allow-list that never refuses anything proves nothing.
+- **How `kong-path-allow` actually matches** is now pinned down: the start is anchored, the end is
+  not, so `/public` also permits `/publicsecret`. Asserted, along with an end-anchored `/exact$`
+  refusing `/exactly`.
+- The realm gained the roles, groups, group mapper and short-lived client these need.
+
+### Fixed
+- **The documentation recommended a pattern Kong refuses to load.** It suggested anchoring with
+  `^/public$`; `allow_paths` uses Kong's path typedef, which rejects any value not starting with a
+  slash, so a configuration using that advice stops Kong at boot. Only the end can be anchored.
+  Found by writing the test rather than by reading the page.
+- The 2.x oidcify variant's config had not been given the new routes, so six assertions failed
+  against it with 404 while the legacy image was green — the variant quietly diverging, which is
+  exactly what it must not do.
+
+### Changed
+- M3b again, and it narrows further: the replacement mechanism for the authorization half is now
+  **proven**, not plausible. What remains is a mapping question — do the roles a live configuration
+  uses correspond to groups?
+
 ## [1.14.0] - 2026-09-14
 
 ### Added

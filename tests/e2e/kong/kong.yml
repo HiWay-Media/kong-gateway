@@ -16,6 +16,38 @@ services:
               allow_paths: ['/allowed']
               regex: true
 
+      # kong-path-allow matches with the start anchored and the end open — `/public` also permits
+      # `/publicsecret`. That is documented as a warning; here it is asserted, so the day the plugin
+      # changes behaviour the test says which way it changed rather than leaving a stale warning.
+      - name: anchoring
+        paths: ['/anchor']
+        plugins:
+          - name: kong-path-allow
+            config:
+              # `/exact$` and not `^/exact$`: Kong's path typedef rejects anything that does not
+              # start with a slash, so the start cannot be anchored with `^` at all. Only the end
+              # can — which the documentation used to get wrong.
+              allow_paths: ['/public', '/exact$']
+              regex: true
+
+      # A role jwt-keycloak must find in the token, and one nobody holds. A role check that never
+      # refuses anything is not a check, so both routes exist.
+      - name: jwt-role-held
+        paths: ['/role-ok']
+        plugins:
+          - name: jwt-keycloak
+            config:
+              allowed_iss: ['http://keycloak:8080/realms/kong']
+              realm_roles: ['kong-user']
+
+      - name: jwt-role-missing
+        paths: ['/role-no']
+        plugins:
+          - name: jwt-keycloak
+            config:
+              allowed_iss: ['http://keycloak:8080/realms/kong']
+              realm_roles: ['kong-admin']
+
       # jwt-keycloak: tokens must be signed by the realm and carry its issuer.
       - name: jwt
         paths: ['/jwt']

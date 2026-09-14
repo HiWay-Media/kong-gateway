@@ -42,6 +42,52 @@ services:
               cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
               cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100
 
+      - name: anchoring
+        paths: ['/anchor']
+        plugins:
+          - name: kong-path-allow
+            config:
+              # `/exact$` and not `^/exact$`: Kong's path typedef rejects anything that does not
+              # start with a slash, so the start cannot be anchored with `^` at all. Only the end
+              # can — which the documentation used to get wrong.
+              allow_paths: ['/public', '/exact$']
+              regex: true
+
+      # The other half of M3b, made concrete: oidcify does not validate roles, it puts the token's
+      # groups into `authenticated_groups` and leaves authorization to Kong's bundled ACL plugin.
+      # Two routes, because an allow-list that never refuses anything proves nothing.
+      - name: group-allowed
+        paths: ['/group-ok']
+        plugins:
+          - name: oidcify
+            config: &oidcify_api
+              issuer: http://keycloak:8080/realms/kong
+              client_id: kong-e2e
+              client_secret: kong-e2e-secret
+              redirect_uri: https://kong:8443/group-ok/cb
+              consumer_name: oidcuser
+              bearer_jwt_allowed_auds: ['kong-e2e']
+              redirect_unauthenticated: false
+              groups_claim: groups
+              cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+              cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100
+          - name: acl
+            config:
+              allow: ['gateway-users']
+              always_use_authenticated_groups: true
+
+      - name: group-denied
+        paths: ['/group-no']
+        plugins:
+          - name: oidcify
+            config:
+              <<: *oidcify_api
+              redirect_uri: https://kong:8443/group-no/cb
+          - name: acl
+            config:
+              allow: ['gateway-admins']
+              always_use_authenticated_groups: true
+
       # The experiment behind M3b: can oidcify validate the ACCESS token, which is what
       # jwt-keycloak checks today? Keycloak issues access tokens with `aud: account`, so this route
       # allows that audience instead of the client's.

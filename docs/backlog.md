@@ -31,6 +31,10 @@ The question is no longer *which fork* but: **do any live routes use those valid
 this closes by consolidation with no new dependency on the authentication path. That is a question
 about the running configuration, which only its owner can answer.
 
+**The replacement mechanism is now proven**, not just plausible: the end-to-end suite asserts that
+oidcify + Kong's ACL plugin authorizes by group in both directions on the 3.x line. What is missing
+is the mapping from the roles a live configuration uses onto Keycloak groups.
+
 **Done when:** the live Kong configuration has been checked for `scope`/`roles`/`realm_roles`/
 `client_roles`/`consumer_match` on jwt-keycloak, and either those routes have an ACL-based
 equivalent or the plugin is dropped — with the reasoning written in `docs/milestones.md`.

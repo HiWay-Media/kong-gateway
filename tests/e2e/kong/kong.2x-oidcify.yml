@@ -21,6 +21,33 @@ services:
               allow_paths: ['/allowed']
               regex: true
 
+      # Same checks as the legacy image: the variant changes the OIDC plugin and nothing else, so
+      # anything that behaved one way there must behave the same way here. Leaving these out is how
+      # a variant quietly diverges.
+      - name: anchoring
+        paths: ['/anchor']
+        plugins:
+          - name: kong-path-allow
+            config:
+              allow_paths: ['/public', '/exact$']
+              regex: true
+
+      - name: jwt-role-held
+        paths: ['/role-ok']
+        plugins:
+          - name: jwt-keycloak
+            config:
+              allowed_iss: ['http://keycloak:8080/realms/kong']
+              realm_roles: ['kong-user']
+
+      - name: jwt-role-missing
+        paths: ['/role-no']
+        plugins:
+          - name: jwt-keycloak
+            config:
+              allowed_iss: ['http://keycloak:8080/realms/kong']
+              realm_roles: ['kong-admin']
+
       # Unchanged from the production line: jwt-keycloak still exists on Kong 2.x.
       - name: jwt
         paths: ['/jwt']

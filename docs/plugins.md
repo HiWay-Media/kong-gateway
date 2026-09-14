@@ -22,8 +22,13 @@ Its porting cost is a version bump.
     does not anchor the end. So an entry of `/public` also permits `/publicsecret`.
 
     For a deny list that errs safe. For an **allow** list it errs the other way, and it is worth
-    checking real configurations against it rather than assuming intent. Anchor patterns explicitly
-    (`^/public$`) where a full match is what you mean.
+    checking real configurations against it rather than assuming intent.
+
+    Anchor the **end** where a full match is what you mean — `/public$`. The start cannot be
+    anchored: `allow_paths` uses Kong's path typedef, which rejects any value not beginning with a
+    slash, so `^/public$` is refused when the configuration loads. (This page recommended exactly
+    that until a test tried it and Kong would not start.) The end-anchored form is asserted in the
+    end-to-end suite, in both directions.
 
 ## oidc
 
