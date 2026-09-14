@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="kong-gateway">
+  <!-- A gate: two posts and a lintel, with a locked path through it. -->
+  <path d="M10 54V18a6 6 0 0 1 6-6h32a6 6 0 0 1 6 6v36" stroke="currentColor" stroke-width="5"
+        stroke-linecap="round"/>
+  <path d="M22 54V32a10 10 0 0 1 20 0v22" stroke="currentColor" stroke-width="5"
+        stroke-linecap="round"/>
+  <circle cx="32" cy="38" r="4" fill="currentColor"/>
+</svg>

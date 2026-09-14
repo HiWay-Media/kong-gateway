@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.2.0] - 2026-09-14
+
+### Changed
+- **The documentation site got a visual identity**: custom palette and typography (Inter /
+  JetBrains Mono), a logo and favicon, a hero and card grid on the landing page, and styling for
+  the things this site is actually made of — dense tables, admonitions and code blocks. The content
+  here is technical and long; the styling exists to make it scannable, not to decorate it.
+- Navigation: instant loading, anchor tracking, a table of contents that follows the reading
+  position, an edit link per page, and search suggestions and highlighting.
+- Verified with `mkdocs build --strict` and by looking at the rendered pages in light and dark, at
+  desktop and phone widths — the hero scales down instead of hyphenating the title, and the action
+  buttons stack rather than overflow.
+
 ## [1.1.0] - 2026-09-14
 
 ### Added

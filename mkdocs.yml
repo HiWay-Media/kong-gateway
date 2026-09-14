@@ -2,32 +2,72 @@ site_name: kong-gateway
 site_description: A reproducible Kong Gateway image with OIDC, JWT-Keycloak and path-allow plugins
 site_url: https://hiway-media.github.io/kong-gateway/
 repo_url: https://github.com/HiWay-Media/kong-gateway
+repo_name: HiWay-Media/kong-gateway
 edit_uri: edit/main/docs/
+copyright: Built from one Dockerfile, tested before it is published.
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
   features:
+    - navigation.instant
+    - navigation.tracking
     - navigation.sections
     - navigation.top
+    - navigation.footer
+    - toc.follow
     - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  font:
+    text: Inter
+    code: JetBrains Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: black
+      accent: teal
       toggle: {icon: material/weather-night, name: Switch to dark mode}
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: black
+      accent: teal
       toggle: {icon: material/weather-sunny, name: Switch to light mode}
 
+extra_css:
+  - assets/extra.css
+
 markdown_extensions:
+  - abbr
   - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
   - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.highlight: {anchor_linenums: true}
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed: {alternate_style: true}
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - tables
   - toc: {permalink: true}
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/HiWay-Media/kong-gateway
+      name: Source on GitHub
 
 nav:
   - Home: index.md
