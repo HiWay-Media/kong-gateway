@@ -24,6 +24,8 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/lib.sh` | Helpers and the result protocol (`PASS`/`FAIL`/`XFAIL`/`XPASS`/`SKIP`) |
 | `tests/milestones/M*.sh` | One file per milestone: the milestone itself, in executable form |
 | `tests/run.sh` | Runner and summary (also writes the GitHub Actions step summary) |
+| `tests/policy.sh` | Publishing policy tests: which tags a release produces. Needs no image and no Docker |
+| `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
 | `.github/workflows/image.yml` | 2.x/3.x build matrix, tests, and publishing from tags only |
 | `plugins/` | Empty: for a plugin written in-house, should one ever be needed |
@@ -81,7 +83,9 @@ Then add it to `docs/milestones.md` under the same identifier.
 2. **Deployments pin the digest, not the tag.** A tag can be repushed underneath a running
    workload; a digest cannot. CI prints the digest to use.
 3. **Publishing happens only from an annotated `v*` tag** (or an explicit dispatch). `latest` must
-   mean *the last release*, not *the last commit*.
+   mean *the last release*, not *the last commit*, and it names one line only — the one in
+   `LATEST_LINE`. Changing the tag rules means changing `scripts/publish-tags.sh` and its cases in
+   `tests/policy.sh`, never the workflow alone.
 4. **A red test is not made green by deleting it, loosening it, or appending `|| true`.** Either the
    cause is fixed, or it is declared `expect xfail` with the reason written in the file.
 5. **`reference/` is read-only.** It is the evidence of what was running. If the comparison against

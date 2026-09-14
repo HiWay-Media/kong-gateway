@@ -26,6 +26,24 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.1.0] - 2026-09-14
+
+### Added
+- **`latest` is published**, which the documentation claimed and the workflow never did: only from
+  an annotated `v*` tag, only for the Kong line named by `LATEST_LINE`, and never from a
+  pre-release. Which line carries it is a decision, not a side effect of matrix ordering — two lines
+  both claiming `latest` is how a `docker pull` silently changes major version.
+- **`scripts/publish-tags.sh`**: the tag list for a publish, decided in a script rather than in a
+  YAML expression, so it can be tested.
+- **`tests/policy.sh`**: publishing policy tests, covering the four cases that matter (release tag,
+  second Kong line, manual dispatch from a branch, pre-release) plus the wiring — that the workflow
+  actually uses the script, that login/push/digest stay gated on `publishable`, and that a push to
+  `main` cannot publish. It needs no image and no Docker, and runs as its own CI job so a wrong
+  publishing rule is caught even on a commit where the build cannot start.
+
+  What an image is published **as** is invisible after the fact: a wrong tag looks exactly like a
+  right one until somebody deploys it. It was the one part of the pipeline with no test at all.
+
 ## [1.0.1] - 2026-09-14
 
 ### Fixed

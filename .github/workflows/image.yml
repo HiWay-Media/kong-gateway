@@ -14,9 +14,9 @@ on:
   push:
     tags: ['v*']
     branches: [main]
-    paths: [Dockerfile, .dockerignore, tests/**, .github/workflows/image.yml]
+    paths: [Dockerfile, .dockerignore, tests/**, scripts/**, .github/workflows/image.yml]
   pull_request:
-    paths: [Dockerfile, .dockerignore, tests/**]
+    paths: [Dockerfile, .dockerignore, tests/**, scripts/**]
   workflow_dispatch:
     inputs:
       publish:
@@ -28,11 +28,24 @@ permissions:
   contents: read
   packages: write
 
+# Which Kong line `latest` points at. It is a decision, not a side effect of matrix ordering: two
+# lines both claiming `latest` is how a `docker pull` silently changes major version.
+env:
+  LATEST_LINE: '2.8.5'
+
 concurrency:
   group: image-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Runs without Docker and without an image: a wrong publishing rule must be caught even on a
+  # commit where the build itself cannot start.
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tests/policy.sh
+
   build:
     runs-on: ubuntu-latest
     strategy:
@@ -78,6 +91,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Tags to publish
+        id: tags
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
+        run: |
+          {
+            echo 'list<<TAGS_EOF'
+            ./scripts/publish-tags.sh \
+              "${{ steps.image.outputs.name }}" "${{ matrix.kong }}" "$LATEST_LINE" "$GITHUB_REF"
+            echo TAGS_EOF
+          } >>"$GITHUB_OUTPUT"
+
       - name: Push
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         uses: docker/build-push-action@v6
@@ -85,9 +109,7 @@ jobs:
           context: .
           push: true
           build-args: KONG_VERSION=${{ matrix.kong }}
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ matrix.kong }}
-            ${{ steps.image.outputs.name }}:${{ matrix.kong }}-${{ github.ref_name }}
+          tags: ${{ steps.tags.outputs.list }}
           cache-from: type=gha,scope=${{ matrix.kong }}
 
       - name: Digest to pin in deployments

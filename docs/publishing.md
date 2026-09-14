@@ -3,9 +3,19 @@
 Images go to `ghcr.io/hiway-media/kong-gateway`.
 
 ```
-ghcr.io/hiway-media/kong-gateway:2.8.5
-ghcr.io/hiway-media/kong-gateway:2.8.5-v1.0.0
+ghcr.io/hiway-media/kong-gateway:2.8.5          # the line, moves with each release
+ghcr.io/hiway-media/kong-gateway:2.8.5-v1.1.0   # one release, never repushed
+ghcr.io/hiway-media/kong-gateway:latest         # the last release of the designated line
 ```
+
+`latest` is published only from an annotated `v*` tag, only for the Kong line named by `LATEST_LINE`
+in the workflow, and never from a pre-release such as `v1.1.0-rc.1`. Which line carries it is a
+decision, not a side effect of matrix ordering: two lines both claiming `latest` is how a
+`docker pull` silently changes major version.
+
+Those rules live in `scripts/publish-tags.sh` rather than in a YAML expression, because
+`tests/policy.sh` can then exercise them. What an image is published **as** cannot be checked after
+the fact by pulling it: a wrong tag looks exactly like a right one until somebody deploys it.
 
 Publishing happens only from an annotated `v*` tag, or from a manual `workflow_dispatch` that asks
 for it. A push to `main` builds and tests but publishes nothing: `latest` should mean *the last

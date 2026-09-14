@@ -71,9 +71,13 @@ Only from an annotated `v*` tag (or an explicit manual dispatch). A push to `mai
 without publishing: `latest` must mean *the last release*, not *the last commit*.
 
 ```
-ghcr.io/hiway-media/kong-gateway:2.8.5
-ghcr.io/hiway-media/kong-gateway:2.8.5-v1.0.0
+ghcr.io/hiway-media/kong-gateway:2.8.5          # the line, moves with each release
+ghcr.io/hiway-media/kong-gateway:2.8.5-v1.1.0   # one release, never repushed
+ghcr.io/hiway-media/kong-gateway:latest         # the last release of the designated line
 ```
+
+`latest` is published only from a `v*` release tag, for one Kong line only, and never from a
+pre-release. The rules live in `scripts/publish-tags.sh` and are tested by `tests/policy.sh`.
 
 ⚠️ **Deployments must pin the digest, not the tag.** A tag can be repushed underneath a running
 workload; a digest cannot. CI prints the digest to use.
