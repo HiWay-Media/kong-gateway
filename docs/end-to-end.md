@@ -55,9 +55,39 @@ invalid signature are each refused with 401. That third case is the one worth ha
 decodes without verifying passes the first two. Then a real token, obtained from the realm by
 password grant, is accepted with 200.
 
-**`oidc`** — an unauthenticated request is redirected to the identity provider's authorization
-endpoint rather than passed through. The rest of the browser flow is not simulated; the part worth
-asserting is that the request is challenged at all.
+**`oidc` / `oidcify`** — an unauthenticated request is redirected to the identity provider's
+authorization endpoint rather than passed through, **and then the whole round trip is driven**:
+
+```
+1. an unauthenticated request is challenged
+2. the identity provider serves a login form
+3. alice logs in
+4. the gateway exchanges the code and issues a session
+5. the authenticated request reaches the upstream
+```
+
+A 302 proves the door is locked. It does not prove anyone can get in — and a gateway where nobody
+can log in is broken in a way every other test here would call healthy. The round trip runs for all
+three images, driven by a container with curl **inside** the compose network, because the flow
+depends on names agreeing: Keycloak issues tokens for `http://keycloak:8080`, Kong expects that
+issuer, and the callback has to reach a URL both can resolve.
+
+!!! warning "The flow only completes over TLS"
+    The OIDC session cookie is marked `Secure`, so over plain HTTP it is never sent back and the
+    callback fails with **400** — with nothing in the logs pointing at cookies. The stack therefore
+    gives Kong a TLS listener (`0.0.0.0:8443 ssl`, self-signed in DB-less mode) and the in-network
+    browser accepts that certificate. In production this is a non-issue, provided TLS is not
+    terminated in a way that leaves Kong serving the flow over http.
+
+!!! warning "The callback must be a path Kong routes"
+    With `kong-oidc`, `redirect_uri_path: /cb` sends the provider to a URL matching no route: the
+    redirect lands on a **404** that looks like a plugin failure and is not one. Keeping the
+    callback under the route's own prefix (`/oidc/cb`) is what makes the flow completable.
+
+!!! warning "`session_secret` is not free-form"
+    Setting it to an arbitrary string makes `kong-oidc` answer **500** on every request to the
+    route — the underlying session library requires a key of a specific length. Unset is safer than
+    wrong here, and the e2e leaves it unset for exactly that reason.
 
 ## The 3.x line is a different system
 

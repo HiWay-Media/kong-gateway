@@ -70,6 +70,12 @@ KONG_PLUGINSERVER_OIDCIFY_START_CMD="/usr/local/bin/oidcify"
     **absent**, not blank — which is why the compose file passes them through by bare name rather
     than defaulting them to `""`.
 
+!!! warning "The browser flow needs TLS all the way to Kong"
+    oidcify marks its session cookie `Secure`. If Kong serves the flow over plain HTTP — TLS
+    terminated somewhere in front and forwarded as http, say — the cookie never comes back and the
+    callback answers **400**, with nothing in the logs mentioning cookies. The end-to-end suite gives
+    Kong a TLS listener for this reason.
+
 !!! warning "The first request pays for a cold start"
     Kong starts the Go process lazily, on the first request that touches the plugin, and requests
     arriving before its socket exists get **HTTP 500** —

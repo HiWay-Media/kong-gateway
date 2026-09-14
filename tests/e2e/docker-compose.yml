@@ -50,7 +50,10 @@ services:
       # Set per Kong major by tests/e2e/run.sh: the 3.x line runs oidcify, which is a Go binary Kong
       # starts as an external plugin server rather than a Lua module it loads.
       - KONG_PLUGINS=${KONG_PLUGINS_LIST:-bundled,jwt-keycloak,oidc,kong-path-allow}
-      - KONG_PROXY_LISTEN=0.0.0.0:8000
+      # TLS as well as plain HTTP: the OIDC session cookie is marked Secure, so the browser flow
+      # cannot complete over http — the cookie is never sent back and the callback fails with 400.
+      # Kong generates a self-signed certificate in DB-less mode; the in-network browser accepts it.
+      - KONG_PROXY_LISTEN=0.0.0.0:8000, 0.0.0.0:8443 ssl
       - KONG_ADMIN_LISTEN=off
       - KONG_LOG_LEVEL=notice
       - KONG_PROXY_ACCESS_LOG=/dev/stdout
@@ -62,3 +65,12 @@ services:
       - ${KONG_CONFIG:-./kong/kong.yml}:/kong/kong.yml:ro
     ports:
       - '127.0.0.1:18000:8000'
+
+  # A browser, near enough: it runs inside the network, so the names in the OIDC round trip are the
+  # ones that are actually configured. Started on demand by tests/e2e/run.sh, not by `up`.
+  tester:
+    image: curlimages/curl:8.11.1
+    profiles: ['tools']
+    entrypoint: ['sh']
+    volumes:
+      - ./tester:/t:ro

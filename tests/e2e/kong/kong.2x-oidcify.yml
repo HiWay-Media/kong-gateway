@@ -38,7 +38,7 @@ services:
               issuer: http://keycloak:8080/realms/kong
               client_id: kong-e2e
               client_secret: kong-e2e-secret
-              redirect_uri: http://127.0.0.1:18000/api/cb
+              redirect_uri: https://kong:8443/api/cb
               consumer_name: oidcuser
               bearer_jwt_allowed_auds: ['kong-e2e']
               redirect_unauthenticated: false
@@ -54,8 +54,10 @@ services:
               issuer: http://keycloak:8080/realms/kong
               client_id: kong-e2e
               client_secret: kong-e2e-secret
-              redirect_uri: http://127.0.0.1:18000/oidc/cb
+              redirect_uri: https://kong:8443/oidc/cb
               consumer_name: oidcuser
               bearer_jwt_allowed_auds: ['kong-e2e']
+              # The session cookie is Secure, so the flow only completes over TLS. In production
+              # that is what you want; in a test it has to be arranged rather than assumed.
               cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
               cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100

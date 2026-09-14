@@ -26,6 +26,29 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.6.0] - 2026-09-14
+
+### Added
+- **The full authorization code flow is now driven end to end**, for all three images: challenge →
+  login form → credentials → callback → session cookie → authenticated request reaching the
+  upstream. It runs from a container inside the compose network, because the flow depends on
+  Keycloak, Kong and the callback URL all agreeing on names.
+
+  Until now the suite asserted a 302 and stopped. That proves the door is locked; it does not prove
+  anyone can get in, and a gateway where nobody can log in is broken in a way every other check here
+  would call healthy.
+
+### Fixed
+- **The stack now gives Kong a TLS listener**, because the OIDC session cookie is marked `Secure`:
+  over plain HTTP it is never sent back and the callback fails with 400, with nothing in the logs
+  mentioning cookies. Worth knowing wherever TLS is terminated in front of Kong and forwarded as
+  http.
+- **`redirect_uri_path` must name a path Kong routes.** `/cb` alone matches no route, so the
+  provider's redirect lands on a 404 that looks like a plugin failure and is not one. The e2e keeps
+  the callback under the route's own prefix.
+- **`session_secret` is not free-form**: an arbitrary string makes `kong-oidc` answer 500 on every
+  request to the route. The e2e leaves it unset.
+
 ## [1.5.0] - 2026-09-14
 
 ### Added

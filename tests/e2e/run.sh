@@ -101,6 +101,21 @@ expects() {
   [ "$got" = "$want" ] && ok "$desc (HTTP $got)" || bad "$desc — expected HTTP $want, got $got"
 }
 
+# The full round trip, run from inside the network by a container with curl. Everything else here
+# proves the door is locked; this proves it opens for someone who has the key.
+assert_login_round_trip() {
+  local path="${1:-/oidc/anything}" out
+  echo
+  echo "==> the whole authorization code flow, driven as a browser"
+  if out=$(compose run --rm -T tester /t/login-flow.sh https://kong:8443 "$path" 2>&1); then
+    printf '%s\n' "$out" | sed 's/^/       /'
+    ok "a user can actually log in and reach the upstream"
+  else
+    printf '%s\n' "$out" | sed 's/^/       /'
+    bad "the login round trip failed — see the steps above"
+  fi
+}
+
 assert_oidcify() {
   # oidcify is an external plugin server: Kong starts the Go process lazily, on the first request
   # that touches the plugin, and requests arriving before its socket exists get a 500. That is a
@@ -157,6 +172,8 @@ assert_oidcify() {
     "") bad "no redirect: the request was not challenged at all" ;;
     *)  bad "redirected somewhere unexpected: $LOCATION" ;;
   esac
+
+  assert_login_round_trip
 }
 
 echo "==> starting the stack with $IMAGE (Kong $KONG_MAJOR.x, OIDC: $OIDC_PROVIDER)"
@@ -215,6 +232,7 @@ if [ "$KONG_MAJOR" -lt 3 ]; then
       "") bad "no redirect: the request was not challenged at all" ;;
       *)  bad "redirected somewhere unexpected: $LOCATION" ;;
     esac
+    assert_login_round_trip
   fi
 else
   assert_oidcify

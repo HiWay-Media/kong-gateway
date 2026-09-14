@@ -34,3 +34,7 @@ services:
               client_secret: kong-e2e-secret
               discovery: http://keycloak:8080/realms/kong/.well-known/openid-configuration
               ssl_verify: 'no'
+              # The callback has to be a path Kong routes somewhere: `/cb` alone matches no route
+              # and the provider's redirect lands on a 404, which looks like a plugin failure and is
+              # not one. Keeping it under the route's own prefix is what makes the flow completable.
+              redirect_uri_path: /oidc/cb

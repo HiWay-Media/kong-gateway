@@ -35,7 +35,7 @@ services:
               issuer: http://keycloak:8080/realms/kong
               client_id: kong-e2e
               client_secret: kong-e2e-secret
-              redirect_uri: http://127.0.0.1:18000/api/cb
+              redirect_uri: https://kong:8443/api/cb
               consumer_name: oidcuser
               bearer_jwt_allowed_auds: ['kong-e2e']
               redirect_unauthenticated: false
@@ -51,7 +51,7 @@ services:
               issuer: http://keycloak:8080/realms/kong
               client_id: kong-e2e
               client_secret: kong-e2e-secret
-              redirect_uri: http://127.0.0.1:18000/oidc/cb
+              redirect_uri: https://kong:8443/oidc/cb
               consumer_name: oidcuser
               # Bearer JWT authentication is OFF unless an audience is allowed. oidcify validates the
               # ID token, whose `aud` is the client id — an access token (aud: account) is refused,
