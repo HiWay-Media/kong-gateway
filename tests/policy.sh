@@ -68,5 +68,16 @@ grep -q "startsWith(github.ref, 'refs/tags/v') || inputs.publish" "$WORKFLOW" \
   && ok "publishing happens only from a v* tag or an explicit dispatch" \
   || bad "the publish condition changed: a push to main may now publish"
 
+# A `paths:` filter on the push trigger also applies to TAG pushes: GitHub evaluates it against the
+# tagged commit, so tagging a release whose commit only touched docs would skip the workflow
+# entirely — no build, no publish, no `latest`, and nothing anywhere saying why. A release that
+# quietly publishes nothing is worse than a pipeline that runs a few minutes too often, so the push
+# trigger carries no filter. Checked by text, so this test needs nothing installed but a shell.
+PUSH_BLOCK=$(awk '/^  push:/ {inside = 1; next} /^  [a-z_]+:/ {inside = 0} inside' "$WORKFLOW")
+case "$PUSH_BLOCK" in
+  *paths:*) bad "the push trigger has a paths filter: a docs-only release tag would publish nothing" ;;
+  *)        ok  "the push trigger has no paths filter, so a release tag always builds" ;;
+esac
+
 [ "$fails" -eq 0 ] && { echo "OK: publishing policy"; exit 0; }
 echo "RED: $fails policy check(s) failed"; exit 1

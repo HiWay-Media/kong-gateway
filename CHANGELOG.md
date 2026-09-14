@@ -26,6 +26,18 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.3.1] - 2026-09-14
+
+### Fixed
+- **A release tag could publish nothing, silently.** The `image` workflow's push trigger carried a
+  `paths:` filter, and GitHub applies that to tag pushes too, evaluating it against the tagged
+  commit — so tagging a release whose commit touched only documentation would skip the workflow
+  entirely: no build, no publish, no `latest`, and nothing anywhere explaining the absence. `v1.2.0`
+  is exactly such a tag. The filter is gone from the push trigger; pull requests keep it, where
+  skipping costs nothing.
+- `tests/policy.sh` now asserts the absence of that filter, so the trade cannot be quietly undone by
+  someone trimming CI minutes.
+
 ## [1.3.0] - 2026-09-14
 
 ### Added

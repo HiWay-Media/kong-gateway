@@ -11,10 +11,14 @@
 name: image
 
 on:
+  # No `paths:` filter here, deliberately. GitHub applies it to TAG pushes too, evaluating it
+  # against the tagged commit — so tagging a release whose commit happened to touch only docs would
+  # skip this workflow entirely: no build, no publish, no `latest`, and nothing anywhere saying why.
+  # A release that quietly publishes nothing is a worse trade than a pipeline that sometimes runs
+  # when it did not need to. Pull requests keep the filter: there, skipping costs nothing.
   push:
     tags: ['v*']
     branches: [main]
-    paths: [Dockerfile, .dockerignore, tests/**, scripts/**, .github/workflows/image.yml]
   pull_request:
     paths: [Dockerfile, .dockerignore, tests/**, scripts/**]
   workflow_dispatch:
