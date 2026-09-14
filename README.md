@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo.svg">
+  <img src="docs/assets/logo-ink.svg" alt="" width="76" align="left" hspace="14" vspace="4">
+</picture>
+
 # kong-gateway
 
 Reproducible Kong Gateway images carrying three plugins Kong does not bundle: **OIDC**,
