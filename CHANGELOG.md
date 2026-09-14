@@ -26,6 +26,24 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.11.0] - 2026-09-14
+
+### Added
+- **`scripts/sync-github.py`**: mirrors the backlog and the milestones into real GitHub issues and
+  milestones, so the work is visible where people look for it. The repository stays the source of
+  truth and GitHub is a view of it — issues are matched by their `BL-xx` prefix, so the sync updates
+  instead of duplicating, and an item marked `done` or `dropped` closes its issue.
+- It plans by default and writes only with `--apply`. Fifteen issues created by a script that was
+  never dry-run first is not a thing worth finding out about afterwards.
+- A warning when a milestone the tests call reached still has open issues attached — today M1,
+  which passes on module parity while the work attached to it asks whether the **contents** match.
+  That is the shape of a milestone declared reached on a narrower criterion than people assume.
+
+### Fixed
+- Milestone assignment goes through the API rather than `gh issue create --milestone`, which
+  resolves titles only among **open** milestones and fails with `'M1' not found` for a milestone
+  already reached and therefore closed.
+
 ## [1.10.0] - 2026-09-14
 
 ### Added
