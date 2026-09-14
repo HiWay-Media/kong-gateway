@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.0.1] - 2026-09-14
+
+### Fixed
+- **The `image` workflow could never build**: `ghcr.io/${{ github.repository }}` keeps the
+  organisation's capitalisation (`HiWay-Media`) and a Docker reference must be lowercase, so buildx
+  refused the tag before doing any work — `invalid tag ... repository name must be lowercase`. The
+  image name is now computed once per job from `${GITHUB_REPOSITORY,,}`, so a fork still publishes
+  under its own name. This had been failing since before the milestone suite existed; the suite
+  never ran because the build died first.
+- **The `pages` workflow died in setup**: `cache: pip` looks for `requirements.txt` or
+  `pyproject.toml` and this repository has `requirements-docs.txt`, so the job failed before
+  building a single page. Pinned with `cache-dependency-path`.
+
 ## [1.0.0] - 2026-09-14
 
 First release of the build recipe, with the documentation site and the milestone test suite.

@@ -32,9 +32,6 @@ concurrency:
   group: image-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -50,6 +47,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # github.repository keeps the organisation's capitalisation (HiWay-Media), and a Docker
+      # reference must be lowercase: buildx refuses the tag outright with "repository name must be
+      # lowercase". Computed once here rather than hardcoded, so a fork publishes under its own name.
+      - name: Image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >>"$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Build
@@ -58,13 +62,13 @@ jobs:
           context: .
           load: true
           build-args: KONG_VERSION=${{ matrix.kong }}
-          tags: ${{ env.IMAGE }}:${{ matrix.kong }}-ci
+          tags: ${{ steps.image.outputs.name }}:${{ matrix.kong }}-ci
           cache-from: type=gha,scope=${{ matrix.kong }}
           cache-to: type=gha,mode=max,scope=${{ matrix.kong }}
 
       - name: Milestones (includes the smoke gate — see docs/milestones.md)
         id: milestones
-        run: ./tests/run.sh "${{ env.IMAGE }}:${{ matrix.kong }}-ci" "${{ matrix.kong }}"
+        run: ./tests/run.sh "${{ steps.image.outputs.name }}:${{ matrix.kong }}-ci" "${{ matrix.kong }}"
 
       - name: Login GHCR
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
@@ -82,13 +86,13 @@ jobs:
           push: true
           build-args: KONG_VERSION=${{ matrix.kong }}
           tags: |
-            ${{ env.IMAGE }}:${{ matrix.kong }}
-            ${{ env.IMAGE }}:${{ matrix.kong }}-${{ github.ref_name }}
+            ${{ steps.image.outputs.name }}:${{ matrix.kong }}
+            ${{ steps.image.outputs.name }}:${{ matrix.kong }}-${{ github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.kong }}
 
       - name: Digest to pin in deployments
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         run: |
           echo "::notice::Pin THIS digest in your job specs, not the tag. A tag can be repushed underneath a running deployment; a digest cannot."
-          docker buildx imagetools inspect "${{ env.IMAGE }}:${{ matrix.kong }}" \
+          docker buildx imagetools inspect "${{ steps.image.outputs.name }}:${{ matrix.kong }}" \
             --format '{{println .Manifest.Digest}}'
