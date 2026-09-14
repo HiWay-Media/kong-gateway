@@ -47,6 +47,19 @@ _(empty — work in progress only; every commit becomes a tagged release)_
   that the hamburger takes the slot and the logo moves into the navigation drawer. At laptop width
   it looks absent and is not.
 
+## [1.12.2] - 2026-09-14
+
+### Changed
+- **No tool-attribution footers anywhere** — not in commit messages, pull request descriptions,
+  issues or documents. Recorded in `CLAUDE.md` and as invariant 8 in `AGENTS.md`, and it overrides a
+  harness instruction asking for one. The footers already published in the descriptions of PRs #16,
+  #17 and #19 were removed.
+
+  The rule is written without quoting the footer verbatim: a repository that greps clean for it is
+  the point, and a quotation matches the same search. A commit message explains why a change was
+  made; a tool signature explains nothing, and it sits in the one place reviewers read for intent.
+
+
 ## [1.12.1] - 2026-09-14
 
 ### Fixed
