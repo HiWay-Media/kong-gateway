@@ -74,19 +74,21 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     command: ['start-dev', '--import-realm']
+    # List form, like Kong's plugin-server variables and for the same reason: an EMPTY KC_DB is not
+    # an unset one. Keycloak refuses to start with
+    # "Invalid value for option 'KC_DB': . Expected values are: dev-file, ..." — so in DB-less mode
+    # these must be absent, not blank. A mapping cannot leave a key out; a bare name can.
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: http://keycloak:8080
-      KC_HOSTNAME_STRICT: 'false'
-      KC_HTTP_ENABLED: 'true'
-      # Empty unless the db profile is on: Keycloak then falls back to its dev file database, which
-      # is what `start-dev` uses and what it warns is not for production.
-      KC_DB: ${KC_DB:-}
-      KC_DB_URL_HOST: ${KC_DB_URL_HOST:-}
-      KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE:-}
-      KC_DB_USERNAME: ${KC_DB_USERNAME:-}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-}
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KC_HOSTNAME=http://keycloak:8080
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTP_ENABLED=true
+      - KC_DB
+      - KC_DB_URL_HOST
+      - KC_DB_URL_DATABASE
+      - KC_DB_USERNAME
+      - KC_DB_PASSWORD
     volumes:
       - ./keycloak/realm-kong.json:/opt/keycloak/data/import/realm-kong.json:ro
     ports:

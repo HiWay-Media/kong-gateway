@@ -28,6 +28,15 @@ _(empty — work in progress only; every commit becomes a tagged release)_
 
 ## [1.8.0] - 2026-09-14
 
+### Fixed
+- **An empty `KC_DB` broke every DB-less run**, and it shipped in 1.7.0. Keycloak refuses to start
+  with `Invalid value for option 'KC_DB': .` — an empty variable is not an unset one, the same trap
+  as `KONG_PLUGINSERVER_*` two releases earlier. The Keycloak environment is now passed by bare
+  name, so the variables are absent rather than blank when no database is in use.
+- The failure output shows **Keycloak's logs too**, not only Kong's. When Keycloak is the thing that
+  failed to start, Kong's logs say nothing about it — which is exactly how this stayed invisible
+  through a release.
+
 ### Removed
 - **MariaDB.** Production runs Postgres, so the only database mode is `--db postgres`, with Kong and
   Keycloak both on it. One mode that matches reality beats two where one is never exercised — and an

@@ -80,8 +80,12 @@ cleanup() {
   local rc=$?
   if [ "$fails" -gt 0 ] || [ "$rc" -ne 0 ]; then
     echo
-    echo "---- kong logs (last 40 lines) ----"
-    compose logs --no-color --tail 40 kong 2>&1 | sed 's/^/  /'
+    echo "---- kong logs (last 30 lines) ----"
+    compose logs --no-color --tail 30 kong 2>&1 | sed 's/^/  /'
+    # Keycloak too: when it is the one that failed to start, kong's logs say nothing about it —
+    # which is exactly how an empty KC_DB stayed invisible through a whole release.
+    echo "---- keycloak logs (last 15 lines) ----"
+    compose logs --no-color --tail 15 keycloak 2>&1 | sed 's/^/  /'
   fi
   compose down -v --remove-orphans >/dev/null 2>&1
 }
