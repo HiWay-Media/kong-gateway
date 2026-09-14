@@ -26,6 +26,23 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.10.0] - 2026-09-14
+
+### Added
+- **`.github/workflows/backlog.yml`**: the backlog and roadmap check now has its own workflow,
+  triggered by every input the generator reads and the page it writes — `docs/backlog.md`,
+  `docs/roadmap.md`, `tests/milestones/**`, `scripts/backlog.py`.
+- On failure it writes the fix into the job summary, because whoever hits it is usually not whoever
+  wrote the generator.
+- `tests/policy.sh` asserts those four triggers are present. Verified by removing one and watching
+  the assertion fail.
+
+### Fixed
+- **The check ran in the wrong place.** It was a step in the `image` workflow, which filters pull
+  requests by path — Dockerfile, tests, scripts — so a pull request editing only `docs/backlog.md`
+  never reached the check that exists precisely for that edit. A gate that does not run on the
+  change it guards is decoration.
+
 ## [1.9.1] - 2026-09-14
 
 ### Fixed

@@ -97,5 +97,23 @@ case "$PUSH_BLOCK" in
   *)        ok  "the push trigger has no paths filter, so a release tag always builds" ;;
 esac
 
+echo "==> the backlog check runs on the changes it guards"
+
+# A gate that does not run on the change it guards is decoration. The roadmap is generated from the
+# backlog and from the milestone tests, so a pull request touching ANY of those must reach the
+# check — including a docs-only edit, which the image workflow filters out by path.
+BACKLOG_WF="$REPO_ROOT/.github/workflows/backlog.yml"
+if [ -f "$BACKLOG_WF" ]; then
+  for input in docs/backlog.md docs/roadmap.md tests/milestones scripts/backlog.py; do
+    if grep -qF -- "$input" "$BACKLOG_WF"; then
+      ok "a change under ${input} triggers the backlog check"
+    else
+      bad "${input} feeds the roadmap but does not trigger the backlog check"
+    fi
+  done
+else
+  bad "no .github/workflows/backlog.yml: the backlog check runs nowhere of its own"
+fi
+
 [ "$fails" -eq 0 ] && { echo "OK: publishing policy"; exit 0; }
 echo "RED: $fails policy check(s) failed"; exit 1

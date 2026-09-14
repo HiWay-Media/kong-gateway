@@ -1,0 +1,57 @@
+# Keeps the backlog and the generated roadmap honest.
+#
+# It is its own workflow rather than a step inside `image` because of when it needs to run. The
+# image workflow filters pull requests by path — Dockerfile, tests, scripts — so a pull request
+# that only edits docs/backlog.md would never reach the check that exists precisely for that edit.
+# A gate that does not run on the change it guards is decoration.
+#
+# The paths below are every input and output of the generator: the backlog itself, the milestone
+# tests it reads state from, the generated page, and the generator. Change any of them and this
+# runs.
+name: backlog
+
+on:
+  push:
+    branches: [main]
+    paths: [docs/backlog.md, docs/roadmap.md, tests/milestones/**, scripts/backlog.py]
+  pull_request:
+    paths: [docs/backlog.md, docs/roadmap.md, tests/milestones/**, scripts/backlog.py]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backlog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Standard library only, so there is nothing to install and nothing to go stale. `check` lints
+      # the backlog and then fails if docs/roadmap.md is not what the generator would write from the
+      # backlog and the milestone tests as they stand in this commit.
+      - name: Lint the backlog and verify the roadmap is current
+        run: python3 scripts/backlog.py check
+
+      # The failure above says what to run. This says it again in the job summary, because the
+      # person who hits it is usually not the person who wrote the generator.
+      - name: Explain the fix
+        if: failure()
+        run: |
+          {
+            echo '### The roadmap is stale, or the backlog does not parse'
+            echo
+            echo 'Run this and commit both files:'
+            echo
+            echo '```bash'
+            echo 'python3 scripts/backlog.py render'
+            echo '```'
+            echo
+            echo 'The roadmap is generated from `docs/backlog.md` and the milestone tests in'
+            echo '`tests/milestones/`. Editing one without regenerating the other is the only way'
+            echo 'it goes wrong — which is why this check exists.'
+          } >>"$GITHUB_STEP_SUMMARY"
