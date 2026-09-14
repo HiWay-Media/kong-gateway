@@ -42,6 +42,24 @@ services:
               cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
               cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100
 
+      # The experiment behind M3b: can oidcify validate the ACCESS token, which is what
+      # jwt-keycloak checks today? Keycloak issues access tokens with `aud: account`, so this route
+      # allows that audience instead of the client's.
+      - name: api-access
+        paths: ['/api-access']
+        plugins:
+          - name: oidcify
+            config:
+              issuer: http://keycloak:8080/realms/kong
+              client_id: kong-e2e
+              client_secret: kong-e2e-secret
+              redirect_uri: https://kong:8443/api-access/cb
+              consumer_name: oidcuser
+              bearer_jwt_allowed_auds: ['account']
+              redirect_unauthenticated: false
+              cookie_hash_key_hex: 00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
+              cookie_block_key_hex: ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100
+
       # Browser style: an unauthenticated request starts the authorization code flow.
       - name: oidc
         paths: ['/oidc']

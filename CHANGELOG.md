@@ -26,6 +26,36 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.12.0] - 2026-09-14
+
+### Added
+- **Measured, for M3b: oidcify validates Keycloak access tokens**, not only ID tokens. With
+  `bearer_jwt_allowed_auds: ['account']` a real access token is accepted and reaches the upstream,
+  while no token, a malformed one, an invalid signature and an ID token on that route are each
+  refused with 401. Five new assertions on the 3.x line of the end-to-end suite.
+
+  That covers the **authentication** half of `jwt-keycloak` with no new dependency. The
+  **authorization** half — `scope`, `roles`, `realm_roles`, `client_roles`, consumer matching — is
+  not replicated; oidcify feeds `authenticated_groups` to Kong's ACL plugin instead. So M3b's
+  question is no longer *which fork* but **do any live routes use those validators?**
+- **`tests/changelog.sh`**: the changelog now has a gate. Every commit here claims a release in its
+  last line and the rule says that release gets a section; those two came apart silently once, and
+  this catches it. It also checks the sections are unique and newest-first.
+
+### Fixed
+- **The `[1.12.0]` section was missing from this file.** The edit that should have written it had an
+  anchor that no longer existed after a branch reset, so it replaced nothing, wrote nothing, and
+  said nothing — while the commit still claimed the release and the tag was still created. The
+  release existed everywhere except in the file people read to find out what changed. That is what
+  `tests/changelog.sh` now prevents.
+- **`README.md` described the variant's build but not its tags.** The publishing section listed only
+  the pre-variant tags, so the page a reader checks for "what can I pull" was quietly wrong. It now
+  shows `…:2.8.5-oidcify` and states that a variant never takes `latest` or a plain version tag. The
+  plugin table gained an `oidcify` row, and the testing paragraph mentions the end-to-end suite and
+  its Postgres mode.
+- **`CLAUDE.md` now requires documentation in the same commit as the change** — changelog, the pages
+  that describe what changed, and the backlog.
+
 ## [1.11.0] - 2026-09-14
 
 ### Added

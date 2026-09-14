@@ -42,6 +42,24 @@ to make it pass unless that is the task. `XPASS` and `FAIL` are real reds.
   this repository. It is a public build recipe: everything here should make sense to a reader who
   has never seen the infrastructure it runs on.
 
+## Documentation is part of the change, not a follow-up
+
+Every change that alters behaviour updates, **in the same commit**:
+
+1. `CHANGELOG.md` — a new `[X.Y.Z]` section (see the rule at the top of that file);
+2. the pages that describe what changed — `README.md` for anything a newcomer sees first
+   (build commands, image variants, published tags), and the relevant page under `docs/`;
+3. `docs/backlog.md` if it opens or closes known work, followed by
+   `python3 scripts/backlog.py render`.
+
+The failure mode is specific and it has already happened here: a variant image was added, the build
+commands and the plugin table were updated, and the **publishing** section still listed only the
+tags from before — so the one page a reader checks for "what can I pull" was quietly wrong. Docs
+that describe a narrower system than the one that exists are how people stop trusting them.
+
+Before saying a change is done, re-read the pages that mention what you touched. Grep for the thing
+you changed rather than trusting memory of which files mention it.
+
 ## Milestones
 
 If your work reaches or moves a milestone, update `docs/milestones.md` **and** the corresponding test in

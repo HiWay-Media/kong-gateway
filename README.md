@@ -26,7 +26,8 @@ this Dockerfile produces what was actually running.
 | `kong-path-allow` | [seifchen](https://github.com/seifchen/kong-path-allow), Apache 2.0, public on LuaRocks | `0.1-3` | ✅ **`0.2-0`**, published for the 3.x line |
 | `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ✅ replaced by **[oidcify](https://github.com/hanlaur/oidcify)** `1.3.10` — a Go plugin server, not a rock |
 | `jwt-keycloak` | [gbbirkisson](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak), archived | `1.1.0-1` | ⚠️ [Platformatory](https://github.com/Platformatory/kong-plugin-jwt-keycloak) fork, to evaluate |
-| `lua-resty-openidc` | dependency of `kong-oidc` | `1.7.2-1` | depends on the fork chosen |
+| `lua-resty-openidc` | dependency of `kong-oidc` | `1.7.2-1` | not used — oidcify carries its own |
+| `oidcify` | [hanlaur/oidcify](https://github.com/hanlaur/oidcify), Apache-2.0 | — | ✅ `1.3.10`, a Go plugin server. Also available on the 2.x line as the `-oidcify` variant |
 
 ## Build
 
@@ -61,8 +62,13 @@ not reached yet is declared `expect xfail` — its test fails **on purpose** and
 dropped and the document updated. That closes both gaps: reds that normalise, and goals reached
 that nobody records.
 
-State lives in [docs/milestones.md](docs/milestones.md); working rules, for people and agents, in
-[AGENTS.md](AGENTS.md).
+Beyond the image, `tests/e2e/` starts the whole system — a real Keycloak, an upstream, and the image
+between them — and drives the full login round trip. It runs DB-less or on Postgres
+(`--db postgres`), because how Kong is configured differs between the two.
+
+State lives in [docs/milestones.md](docs/milestones.md) and the generated
+[roadmap](docs/roadmap.md); known work in [docs/backlog.md](docs/backlog.md); working rules, for
+people and agents, in [AGENTS.md](AGENTS.md).
 
 ## ⛔ The open decision
 
@@ -84,13 +90,18 @@ Only from an annotated `v*` tag (or an explicit manual dispatch). A push to `mai
 without publishing: `latest` must mean *the last release*, not *the last commit*.
 
 ```
-ghcr.io/hiway-media/kong-gateway:2.8.5          # the line, moves with each release
-ghcr.io/hiway-media/kong-gateway:2.8.5-v1.1.0   # one release, never repushed
-ghcr.io/hiway-media/kong-gateway:latest         # the last release of the designated line
+ghcr.io/hiway-media/kong-gateway:2.8.5                  # the line, moves with each release
+ghcr.io/hiway-media/kong-gateway:2.8.5-v1.1.0           # one release, never repushed
+ghcr.io/hiway-media/kong-gateway:latest                 # the last release of the designated line
+ghcr.io/hiway-media/kong-gateway:2.8.5-oidcify          # the variant: same Kong, maintained OIDC
+ghcr.io/hiway-media/kong-gateway:2.8.5-oidcify-v1.1.0   # one release of the variant
 ```
 
 `latest` is published only from a `v*` release tag, for one Kong line only, and never from a
-pre-release. The rules live in `scripts/publish-tags.sh` and are tested by `tests/policy.sh`.
+pre-release. A **variant never takes `latest` or a plain version tag**: `2.8.5` must keep meaning the
+image that reproduces what runs today, and no publish may move a deployment onto a different
+authentication plugin. The rules live in `scripts/publish-tags.sh` and are tested by
+`tests/policy.sh`.
 
 ⚠️ **Deployments must pin the digest, not the tag.** A tag can be repushed underneath a running
 workload; a digest cannot. CI prints the digest to use.
