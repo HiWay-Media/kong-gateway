@@ -135,10 +135,33 @@ provides it.
 but is small and lightly used — 4 stars, last pushed July 2024 — which is worth knowing before it
 goes on an authentication path.
 
-⚠️ A question worth settling before picking a fork, and sharper now that oidcify is in: oidcify
-validates bearer ID tokens itself. If the routes carrying `jwt-keycloak` only need signature, issuer
-and audience checks, they may not need a second plugin at all. Consolidating is cheaper than adopting
-another unmaintained fork — and it is the option that does not have to be revisited in two years.
+### What was measured, and what it leaves open
+
+On 2026-09-14, with a real Keycloak: **oidcify validates access tokens as well as ID tokens**.
+Configure `bearer_jwt_allowed_auds: ['account']` — the audience Keycloak puts on an access token —
+and the suite shows the full set of outcomes on the 3.x line:
+
+| Request | Result |
+|---|---|
+| no token | 401 |
+| malformed token | 401 |
+| well-formed token, invalid signature | 401 |
+| genuine access token from the realm | **200**, reaching the upstream |
+| ID token on the access-token route | 401 (the audiences are not interchangeable) |
+
+That is the **authentication** half of `jwt-keycloak`, covered with no new dependency. What remains
+is the **authorization** half: `jwt-keycloak` also validates `scope`, `roles`, `realm_roles` and
+`client_roles`, and can match a claim onto a Kong consumer. oidcify does not replicate those; it maps
+a groups claim into `authenticated_groups` for Kong's bundled ACL plugin — a different shape, not a
+missing one.
+
+⚠️ So the open question is no longer *which fork to adopt* but **do any live routes use those
+validators?** If none do, this milestone closes by consolidation — no second plugin, nothing new on
+the authentication path to be abandoned in two years. If some do, the choice is between an ACL-based
+equivalent and a fork, and it is worth making with the roles in front of you.
+
+It is a question about the running configuration, so it stays with whoever operates it. Nothing here
+will be decided by inertia.
 
 ## M4 — 3.x image publishable
 

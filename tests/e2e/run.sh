@@ -183,6 +183,31 @@ assert_oidcify() {
     fi
   fi
 
+  # Only the 3.x config carries this route: it is the measurement behind M3b. On the 2.x variant
+  # jwt-keycloak is still installed, so the question does not arise there.
+  if [ "$KONG_MAJOR" -ge 3 ]; then
+    echo
+    echo "==> oidcify also validates ACCESS tokens — what jwt-keycloak does on the 2.x line"
+    expects "no token is refused" 401 "$PROXY/api-access/x"
+    expects "a malformed token is refused" 401 \
+      -H 'Authorization: Bearer not-a-jwt' "$PROXY/api-access/x"
+    FORGED_ACC='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8va2V5Y2xvYWs6ODA4MC9yZWFsbXMva29uZyIsImF1ZCI6ImFjY291bnQiLCJleHAiOjQxMDI0NDQ4MDB9.bm90LWEtc2lnbmF0dXJl'
+    expects "an invalid signature is refused" 401 \
+      -H "Authorization: Bearer $FORGED_ACC" "$PROXY/api-access/x"
+    ACC=$(token_for access_token)
+    ID_FOR_ACC=$(token_for id_token)
+    if [ -n "$ACC" ] && [ -n "$ID_FOR_ACC" ]; then
+      expects "a real access token from the realm is accepted" 200 \
+        -H "Authorization: Bearer $ACC" "$PROXY/api-access/x"
+      # The audiences are not interchangeable, and a route that accepted both would be checking
+      # nothing: the ID token carries the client as its audience, not `account`.
+      expects "an ID token is refused on the access-token route" 401 \
+        -H "Authorization: Bearer $ID_FOR_ACC" "$PROXY/api-access/x"
+    else
+      bad "Keycloak issued no tokens for the access-token checks"
+    fi
+  fi
+
   echo
   echo "==> on the browser route, a request with no credentials starts the authorization code flow"
   LOCATION=$(curl -s -o /dev/null -w '%{redirect_url}' "$PROXY/oidc/anything")

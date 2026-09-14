@@ -98,6 +98,11 @@ Three more things to know before this reaches anything real:
 - **The configuration is not compatible.** Field names differ throughout: every route using `oidc`
   is rewritten, not renamed. `redirect_unauthenticated: false` is what turns it from a browser flow
   into an API guard that answers 401.
+- **It can stand in for `jwt-keycloak`'s token checks.** Allowing the `account` audience makes it
+  validate Keycloak **access** tokens, which is what `jwt-keycloak` does today — measured, and
+  asserted in the end-to-end suite. What it does not replicate is the role and scope validation;
+  for that it feeds `authenticated_groups` to Kong's ACL plugin. See
+  [Milestones, M3b](milestones.md#m3b-replacement-chosen-for-jwt-keycloak-on-kong-3x).
 - **Bearer authentication is off until an audience is allowed.** `bearer_jwt_allowed_auds` must list
   the audience of the **ID token** — an access token carries a different one and is refused, which
   the end-to-end test asserts on purpose.

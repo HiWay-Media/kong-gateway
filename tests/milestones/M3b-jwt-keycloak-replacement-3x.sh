@@ -8,9 +8,19 @@
 # EXPECTED RED until that is decided. It is the reason the 3.x image is still not publishable, even
 # with oidcify in place: see M4.
 #
-# Worth asking before picking a fork: oidcify validates bearer ID tokens itself. If the routes using
-# jwt-keycloak only need signature, issuer and audience checks, they may not need a second plugin at
-# all — consolidating is cheaper than adopting another unmaintained one.
+# MEASURED on 2026-09-14, and it narrows the question rather than answering it: oidcify validates
+# Keycloak ACCESS tokens too, not only ID tokens — configure `bearer_jwt_allowed_auds: ['account']`
+# and a real access token is accepted while no token, a malformed one, an invalid signature and a
+# token with the wrong audience are each refused with 401. The end-to-end suite asserts all five.
+#
+# So the AUTHENTICATION half of jwt-keycloak needs no fork at all. What remains is the
+# AUTHORIZATION half: jwt-keycloak also validates `scope`, `roles`, `realm_roles` and
+# `client_roles`, and can map a claim onto a Kong consumer. oidcify maps a groups claim into
+# `authenticated_groups` for Kong's ACL plugin instead — a different shape, not a missing one.
+#
+# The open question is therefore no longer "which fork?" but "do any routes use those validators?".
+# If none do, this milestone closes by consolidation, with no new dependency on the auth path. That
+# is a question about the live configuration, so it stays the service owner's to answer.
 source "$(dirname "$0")/../lib.sh"
 
 milestone M3b "A replacement is chosen for jwt-keycloak on Kong 3.x"

@@ -17,10 +17,23 @@ milestone it unblocks, or `-`.
 The upstream is archived; the only non-archived fork has 4 stars and was last pushed in July 2024.
 It is on the authentication path, and it is the single thing keeping the 3.x image unpublishable.
 
-⚠️ Worth settling first: oidcify validates bearer ID tokens itself. If the routes carrying
-jwt-keycloak need only signature, issuer and audience, no second plugin is needed at all.
+⚠️ **Measured on 2026-09-14, and it narrows the question.** oidcify validates Keycloak **access**
+tokens too, not only ID tokens: with `bearer_jwt_allowed_auds: ['account']` a real access token is
+accepted, while no token, a malformed one, an invalid signature and a wrong audience are each
+refused with 401. The end-to-end suite asserts all five on the 3.x line.
 
-**Done when:** the choice, with its reasoning, is written in `docs/milestones.md` and `M3b` passes.
+So the **authentication** half needs no fork. What is left is the **authorization** half:
+jwt-keycloak also validates `scope`, `roles`, `realm_roles` and `client_roles`, and can map a claim
+onto a Kong consumer; oidcify instead maps a groups claim into `authenticated_groups` for Kong's ACL
+plugin.
+
+The question is no longer *which fork* but: **do any live routes use those validators?** If none do,
+this closes by consolidation with no new dependency on the authentication path. That is a question
+about the running configuration, which only its owner can answer.
+
+**Done when:** the live Kong configuration has been checked for `scope`/`roles`/`realm_roles`/
+`client_roles`/`consumer_match` on jwt-keycloak, and either those routes have an ACL-based
+equivalent or the plugin is dropped — with the reasoning written in `docs/milestones.md`.
 
 ## BL-02 — Kong 3.9.3 Admin API returns 500 with an external plugin registered
 
