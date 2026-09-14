@@ -49,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./tests/policy.sh
+      - run: ./tests/changelog.sh
       # The backlog and roadmap check lives in .github/workflows/backlog.yml, which triggers on the
       # paths that actually feed it — including a docs-only edit, which this workflow ignores.
 
