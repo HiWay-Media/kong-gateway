@@ -33,7 +33,6 @@ Milestone state comes from the tests themselves, not from a list kept by hand �
 | `BL-06` | [Add OCI labels and build provenance](backlog.md#bl-06-add-oci-labels-and-build-provenance) | — |
 | `BL-07` | [Remove build tooling from the published image](backlog.md#bl-07-remove-build-tooling-from-the-published-image) | — |
 | `BL-08` | [Warm up the oidcify plugin server on start](backlog.md#bl-08-warm-up-the-oidcify-plugin-server-on-start) | — |
-| `BL-09` | [Scope `packages: write` to the job that publishes](backlog.md#bl-09-scope-packages-write-to-the-job-that-publishes) | — |
 | `BL-10` | [Pin GitHub Actions by SHA](backlog.md#bl-10-pin-github-actions-by-sha) | — |
 | `BL-11` | [Review oidcify's maintenance once a quarter](backlog.md#bl-11-review-oidcifys-maintenance-once-a-quarter) | — |
 
@@ -50,7 +49,8 @@ Milestone state comes from the tests themselves, not from a list kept by hand �
 
 - `BL-03` Pin the base image by digest, not by tag
 - `BL-04` Publish the image that was tested, not a rebuild of it
+- `BL-09` Scope `packages: write` to the job that publishes
 
 ---
 
-13 open, 2 finished, 5 of 7 milestones reached.
+12 open, 3 finished, 5 of 7 milestones reached.

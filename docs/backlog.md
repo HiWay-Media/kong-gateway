@@ -135,12 +135,16 @@ the behaviour is accepted in writing.
 
 ## BL-09 — Scope `packages: write` to the job that publishes
 
-**Priority:** medium · **Status:** open · **Milestone:** -
+**Priority:** medium · **Status:** done · **Milestone:** -
 
 The permission is set workflow-wide, so the `policy` and `e2e` jobs inherit registry write access
 they never use.
 
 **Done when:** the permission is declared on the `build` job only.
+
+✅ **Done 2026-09-15.** The workflow-level grant is `contents: read`; `packages: write` belongs to
+the build job, `contents: write` to the release job. `tests/policy.sh` fails if a package permission
+reappears at workflow level.
 
 ## BL-10 — Pin GitHub Actions by SHA
 
