@@ -26,6 +26,34 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.20.0] - 2026-09-15
+
+### Added
+- **OCI labels** (`BL-06`): title, description, source, documentation, licence, revision, created,
+  version and the Kong line, with revision and version passed by CI — a digest in a job spec now
+  traces back to a commit, which is the state this repository exists to reach.
+- **`.github/CODEOWNERS`** (`BL-15`), listing separately the paths where a mistake is published
+  rather than merely committed. ⚠️ GitHub enforces it only when branch protection requires
+  code-owner review, which is a repository setting and not a file.
+- **`plugins/.gitkeep`** (`BL-13`): the folder `AGENTS.md` describes now exists in a clone.
+- Provenance for the supporting rocks (`BL-14`): who publishes each, and why `lua-resty-jwt` comes
+  from a fork.
+
+### Changed
+- `.dockerignore` excludes `docs/`, `scripts/`, `site/` and the digest file (`BL-12`): what the build
+  does not need has no business being copied to the daemon.
+
+### Removed
+- **`BL-07` is dropped, measured rather than deferred.** Removing `git`, `unzip` and `curl` from the
+  finished image takes `/usr/local/lib/luarocks` with them — the whole rock tree, every plugin —
+  leaving an image where `kong version` answers and no plugin exists. With `--auto-remove` apt judges
+  the `kong` package itself orphaned. Two real builds said so. The extra surface is real; an image
+  whose plugins have silently vanished is worse. The Dockerfile records it where someone would
+  otherwise try it again.
+- Also recorded rather than glossed: **provenance and SBOM attestations are not added**, because they
+  come from `buildx --push` and this workflow deliberately pushes the image it tested instead of
+  rebuilding it. Having both needs a step that attests an already-pushed digest.
+
 ## [1.19.3] - 2026-09-15
 
 ### Fixed

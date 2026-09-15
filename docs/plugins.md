@@ -8,7 +8,16 @@ Three plugins beyond `bundled`. None ships with Kong.
 | `oidc` | [nokia/kong-oidc](https://github.com/nokia/kong-oidc) | `1.1.0-0` | ✅ replaced by **[oidcify](https://github.com/hanlaur/oidcify)** `1.3.10` |
 | `jwt-keycloak` | [gbbirkisson/kong-plugin-jwt-keycloak](https://github.com/gbbirkisson/kong-plugin-jwt-keycloak) | `1.1.0-1` | ⚠️ fork only |
 
-Supporting rocks: `lua-resty-openidc 1.7.2-1`, `lua-resty-jwt 0.2.2-0`, `lua-resty-cookie 0.1.0-1`.
+Supporting rocks, with where each comes from — the same question the plugins above get answered,
+because a dependency on the authentication path deserves it too:
+
+| Rock | Published by | Why it is here |
+|---|---|---|
+| `lua-resty-openidc 1.7.2-1` | [`hanszandbelt`](https://luarocks.org/modules/hanszandbelt/lua-resty-openidc) | the OIDC engine `kong-oidc` wraps; maintained upstream |
+| `lua-resty-jwt 0.2.2-0` | [`cdbattags`](https://luarocks.org/modules/cdbattags/lua-resty-jwt) | JWT parsing for both auth plugins. The original author's line is dormant; this fork is the one LuaRocks serves |
+| `lua-resty-cookie 0.1.0-1` | [`utix`](https://luarocks.org/modules/utix/lua-resty-cookie) | session cookies for `kong-oidc` |
+
+Each is pinned to an exact rockspec URL, so none can move under a build.
 
 ## kong-path-allow
 

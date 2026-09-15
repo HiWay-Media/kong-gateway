@@ -1,0 +1,15 @@
+# Who is asked to review what.
+#
+# A repository that publishes images guarding authentication should not be able to change its own
+# build, its gates or its publishing rules without someone seeing it. GitHub only enforces this when
+# the branch protection rule requires review from code owners — that setting is not in this file and
+# has to be turned on in the repository, so this is half the answer by construction.
+
+*                       @HiWay-Media/devops
+
+# The parts where a mistake is published rather than merely committed.
+/Dockerfile             @HiWay-Media/devops
+/kong-base-digests.env  @HiWay-Media/devops
+/.github/workflows/     @HiWay-Media/devops
+/scripts/               @HiWay-Media/devops
+/tests/                 @HiWay-Media/devops

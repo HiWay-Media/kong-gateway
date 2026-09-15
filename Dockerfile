@@ -32,6 +32,23 @@ ARG KONG_VERSION
 # a migration that can be tested and rolled back one image tag at a time, instead of being bundled
 # into the jump to Kong 3.
 ARG OIDC_PROVIDER=
+
+# Who made this, from what, and when. Without them a digest in a job spec is a hash nobody can trace
+# back to a commit — which is the state this repository exists to get out of. Passed by CI; the
+# defaults keep a local build honest about being a local build.
+ARG VCS_REF=local
+ARG BUILD_DATE=unknown
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="kong-gateway" \
+      org.opencontainers.image.description="Kong Gateway with OIDC, JWT-Keycloak and path-allow" \
+      org.opencontainers.image.source="https://github.com/HiWay-Media/kong-gateway" \
+      org.opencontainers.image.documentation="https://hiway-media.github.io/kong-gateway/" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.version="${VERSION}" \
+      media.hiway.kong.version="${KONG_VERSION}"
+
 USER root
 
 # Every rock is pinned to an explicit rockspec URL rather than `luarocks install <name> <version>`.
@@ -137,6 +154,13 @@ RUN set -eux; \
         # releases, so it is worked around here rather than waited on.
         cp -r /usr/local/kong/include/. /usr/local/kong/lib/; \
     fi
+
+# ⛔ git, unzip and curl stay. Removing them was tried and measured on 2026-09-15: `apt-get purge`
+# takes /usr/local/lib/luarocks with them — the whole rock tree, every plugin — leaving an image
+# where `kong version` answers and no plugin exists. With --auto-remove it is worse, since apt judges
+# the kong package itself orphaned. The extra surface is real; an image whose plugins have silently
+# vanished is worse. See BL-07.
+
 
 # ⚠️ The >= 3 branch still has no replacement for jwt-keycloak, so a 3.x build FAILS its smoke test
 # even with oidcify in place. That is intentional — a red build tells the truth better than an image
