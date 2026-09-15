@@ -26,6 +26,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.19.3] - 2026-09-15
+
+### Fixed
+- **Closing an issue threw away the answer.** `scripts/sync-github.py` closed an issue whose backlog
+  item was done without updating its body first, so the issue showed the original criterion and
+  nothing about how it had been met. Whoever opens a closed issue is asking exactly that question,
+  and the answer was in the backlog entry all along. It updates, then closes.
+- Re-applied to `BL-03`, `BL-04` and `BL-09`: all three now carry their **Done when** and the
+  evidence underneath.
+
 ## [1.19.2] - 2026-09-15
 
 ### Fixed
