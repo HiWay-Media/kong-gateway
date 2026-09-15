@@ -26,6 +26,20 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.19.1] - 2026-09-15
+
+### Fixed
+- **The release job failed on the first tag it ever ran.** `gh release create` answered HTTP 500
+  while a plain API call for the same release succeeded, so the release is now created through the
+  API — and if one already exists, its notes are edited instead. Re-running a tag's workflow updates
+  the release rather than failing on one that is already there.
+- **The recorded digests were not digests.** `--format '{{.Manifest.Digest}}'` prints the whole
+  default description instead of the field, so the step that records what was published wrote three
+  lines of prose where a digest belonged. It uses `println` now and refuses anything that does not
+  start with `sha256:` — a malformed digest is worse than a missing one, because it ends up in notes
+  people copy into deployments.
+- `tests/policy.sh` asserts both.
+
 ## [1.19.0] - 2026-09-15
 
 ### Added
