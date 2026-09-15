@@ -76,9 +76,15 @@ token_for() {
     | python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))" 2>/dev/null
 }
 
-# A token from the short-lived client: its access tokens last one second, which is the only way to
+# A token from the short-lived client: its access tokens last ten seconds, which is the only way to
 # test expiry without waiting out a realm's normal lifespan. Kong caches realm keys, not tokens, so
 # nothing else in the suite is affected.
+#
+# Ten and not one. One second raced the test itself: on a loaded runner, fetching the token and
+# issuing the request took longer than the token lived, and the assertion that it works WHILE VALID
+# failed with a 401 that was entirely correct. A test whose result depends on how busy the machine
+# is teaches people to re-run rather than to read — the seconds below are the cost of not having
+# that.
 short_lived_token() {
   curl -s -X POST "$IDP/realms/kong/protocol/openid-connect/token" \
     -d grant_type=password -d client_id=kong-e2e-short -d client_secret=kong-e2e-short-secret \
@@ -191,7 +197,7 @@ assert_oidcify() {
     else
       expects "…and it works while it is valid" 200 \
         -H "Authorization: Bearer $EXPIRING_ACC" "$PROXY/api-access/x"
-      sleep 3
+      sleep 12
       expects "once expired, the same token is refused" 401 \
         -H "Authorization: Bearer $EXPIRING_ACC" "$PROXY/api-access/x"
     fi
@@ -314,7 +320,7 @@ if [ "$KONG_MAJOR" -lt 3 ]; then
   else
     expects "…and it works while it is valid" 200 \
       -H "Authorization: Bearer $EXPIRING" "$PROXY/jwt/anything"
-    sleep 3
+    sleep 12
     expects "once expired, the same token is refused" 401 \
       -H "Authorization: Bearer $EXPIRING" "$PROXY/jwt/anything"
   fi
