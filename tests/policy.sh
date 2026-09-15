@@ -146,9 +146,18 @@ echo "==> a tag produces a release, and only jobs that publish can publish"
 
 # A tag that ships images and leaves no readable trace is how a registry fills with versions nobody
 # can map back to a change.
-grep -q "gh release create" "$WORKFLOW" \
-  && ok "a v* tag creates a GitHub release" \
+grep -qE "gh (release edit|api \"repos)" "$WORKFLOW" \
+  && ok "a v* tag creates or updates a GitHub release" \
   || bad "nothing creates a release: a tag would publish images and say nothing"
+
+# `{{.Manifest.Digest}}` prints the whole default description rather than the field, and the first
+# real tag recorded three lines of prose where a digest belonged — in notes people copy into
+# deployments.
+if grep -q "{{\.Manifest\.Digest}}" "$WORKFLOW"; then
+  bad "a digest is read without println — that prints a description, not a digest"
+else
+  ok "digests are read with println, and checked to start with sha256:"
+fi
 
 grep -q "release-notes.sh" "$WORKFLOW" \
   && ok "the release body comes from CHANGELOG.md, not from a second description" \

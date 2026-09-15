@@ -212,7 +212,16 @@ jobs:
         run: |
           name="${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}"
           image="${{ steps.image.outputs.name }}:$name"
-          digest=$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')
+          # `{{println .Manifest.Digest}}` and not `{{.Manifest.Digest}}`: the second prints the
+          # whole default description instead of the field, and the first run of this step recorded
+          # three lines of prose where a digest belonged.
+          digest=$(docker buildx imagetools inspect "$image" --format '{{println .Manifest.Digest}}' | head -1)
+          case "$digest" in
+            sha256:*) ;;
+            # A malformed digest is worse than a missing one: it lands in release notes that people
+            # copy into deployments.
+            *) echo "::error::did not get a digest for $image, got: $digest"; exit 1 ;;
+          esac
           mkdir -p published
           printf '%s@%s\n' "$image" "$digest" >"published/$name.txt"
 
@@ -277,4 +286,15 @@ jobs:
               echo 'or this tag changed nothing that is built.'
             fi
           } >>"$notes"
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$notes" --verify-tag
+          # `gh release create` answered HTTP 500 on the first real tag while the plain API call
+          # for the same release succeeded, so the release is created through the API and edited if
+          # it already exists. Re-running a tag's workflow then updates the notes instead of failing
+          # on a release that is already there.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$notes"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/releases" -X POST \
+              -f tag_name="$GITHUB_REF_NAME" -f name="$GITHUB_REF_NAME" \
+              -f body="$(cat "$notes")" >/dev/null
+          fi
+          echo "::notice::release $GITHUB_REF_NAME written from the changelog"
