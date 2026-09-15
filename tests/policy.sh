@@ -97,6 +97,51 @@ case "$PUSH_BLOCK" in
   *)        ok  "the push trigger has no paths filter, so a release tag always builds" ;;
 esac
 
+echo "==> the base image is pinned by digest, and the pin is consistent"
+
+# This repository asks deployments to pin digests. Building itself on a mutable tag would be the
+# same mistake one level up, and the one place nobody would look for it.
+DOCKERFILE="$REPO_ROOT/Dockerfile"
+DIGESTS="$REPO_ROOT/kong-base-digests.env"
+
+grep -qE '^FROM kong:\$\{KONG_VERSION\}-ubuntu@\$\{KONG_DIGEST\}' "$DOCKERFILE" \
+  && ok "the base image is referenced by digest" \
+  || bad "the Dockerfile builds on a mutable tag"
+
+# The default has to match the file, or a bare `docker build` silently uses a different base than
+# CI does — which is the kind of difference that only shows up in production.
+DEFAULT_VERSION=$(grep -oE '^ARG KONG_VERSION=.*' "$DOCKERFILE" | cut -d= -f2)
+DEFAULT_DIGEST=$(grep -oE '^ARG KONG_DIGEST=.*' "$DOCKERFILE" | cut -d= -f2-)
+FILE_DIGEST=$(grep -E "^${DEFAULT_VERSION}=" "$DIGESTS" | cut -d= -f2-)
+[ -n "$FILE_DIGEST" ] && [ "$DEFAULT_DIGEST" = "$FILE_DIGEST" ] \
+  && ok "the default digest matches kong-base-digests.env for $DEFAULT_VERSION" \
+  || bad "the default KONG_DIGEST does not match the entry for $DEFAULT_VERSION"
+
+# Every line CI builds needs an entry, or that build falls back to the default digest and quietly
+# builds the wrong base.
+for v in $(grep -oE "kong: '[0-9.]+'" "$WORKFLOW" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | sort -u); do
+  if grep -qE "^${v}=sha256:" "$DIGESTS"; then
+    ok "Kong $v has a pinned base digest"
+  else
+    bad "Kong $v is built in CI but has no entry in kong-base-digests.env"
+  fi
+done
+
+echo "==> the image that is published is the image that was tested"
+
+# Building a second time to publish is not the same as publishing what passed. With a warm cache it
+# usually produces identical bits — usually is not a property you can rely on for an artefact that
+# guards authentication.
+grep -q "docker push" "$WORKFLOW" \
+  && ok "the publish step pushes an image rather than building one" \
+  || bad "nothing in the workflow pushes a built image"
+
+if [ "$(grep -c "push: true" "$WORKFLOW")" = "0" ]; then
+  ok "no second build runs with push: true"
+else
+  bad "a second build-push-action publishes — that is a rebuild, not the tested image"
+fi
+
 echo "==> the backlog check runs on the changes it guards"
 
 # A gate that does not run on the change it guards is decoration. The roadmap is generated from the

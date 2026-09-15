@@ -78,6 +78,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Base image digest
+        id: base
+        # Read from the file rather than resolved from the registry: resolving here would pin
+        # whatever the registry serves this morning, which is the mutable tag with extra steps.
+        run: |
+          digest=$(grep -E "^${{ matrix.kong }}=" kong-base-digests.env | cut -d= -f2-)
+          [ -n "$digest" ] || { echo "no pinned digest for Kong ${{ matrix.kong }}"; exit 1; }
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
       - name: Build the image
         uses: docker/build-push-action@v6
         with:
@@ -85,6 +94,7 @@ jobs:
           load: true
           build-args: |
             KONG_VERSION=${{ matrix.kong }}
+            KONG_DIGEST=${{ steps.base.outputs.digest }}
             OIDC_PROVIDER=${{ matrix.variant }}
           tags: kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
@@ -122,6 +132,15 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Base image digest
+        id: base
+        # Read from the file rather than resolved from the registry: resolving here would pin
+        # whatever the registry serves this morning, which is the mutable tag with extra steps.
+        run: |
+          digest=$(grep -E "^${{ matrix.kong }}=" kong-base-digests.env | cut -d= -f2-)
+          [ -n "$digest" ] || { echo "no pinned digest for Kong ${{ matrix.kong }}"; exit 1; }
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
       - name: Build
         uses: docker/build-push-action@v6
         with:
@@ -129,6 +148,7 @@ jobs:
           load: true
           build-args: |
             KONG_VERSION=${{ matrix.kong }}
+            KONG_DIGEST=${{ steps.base.outputs.digest }}
             OIDC_PROVIDER=${{ matrix.variant }}
           tags: ${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}-ci
           cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
@@ -161,17 +181,22 @@ jobs:
             echo TAGS_EOF
           } >>"$GITHUB_OUTPUT"
 
-      - name: Push
+      - name: Push the image that was tested
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          build-args: |
-            KONG_VERSION=${{ matrix.kong }}
-            OIDC_PROVIDER=${{ matrix.variant }}
-          tags: ${{ steps.tags.outputs.list }}
-          cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
+        # `docker tag` and `docker push`, not a second build-push-action. Building again to publish
+        # is not the same as publishing what passed: with a warm cache it usually produces identical
+        # bits, and "usually" is not a property to rely on for an image that guards authentication.
+        # This pushes the exact layers the milestones and the end-to-end suite ran against.
+        run: |
+          tested="${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}-ci"
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            echo "==> $tag"
+            docker tag "$tested" "$tag"
+            docker push "$tag"
+          done <<'TAGS'
+          ${{ steps.tags.outputs.list }}
+          TAGS
 
       - name: Digest to pin in deployments
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'

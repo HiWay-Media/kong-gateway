@@ -15,6 +15,19 @@ docker build --platform linux/amd64 --build-arg KONG_VERSION=2.8.5 -t kong-gatew
 DOCKER_PLATFORM=linux/amd64 ./tests/run.sh kong-gateway:2.8.5 2.8.5
 ```
 
+The base image is pinned **by digest**, not by tag — the same rule this repository asks of the
+deployments that run its images. The mapping lives in `kong-base-digests.env`:
+
+```
+2.8.5=sha256:a2b02d51…
+3.9.3=sha256:ca71c559…
+```
+
+`ARG KONG_DIGEST` defaults to the entry for the default `KONG_VERSION`, so a bare `docker build` is
+pinned too; CI passes the entry for the line it is building, and `tests/policy.sh` checks the default
+still matches the file and that every line CI builds has an entry. Refreshing a digest is a
+deliberate act — a new digest is a different base image, and that belongs in a commit with a reason.
+
 `KONG_VERSION` selects both the base image and the plugin set, so one tree builds several Kong
 majors. A second argument, `OIDC_PROVIDER`, selects the OIDC implementation — which is what makes
 the variant below possible.

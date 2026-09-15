@@ -24,8 +24,6 @@ Milestone state comes from the tests themselves, not from a list kept by hand �
 |---|---|---|
 | `BL-01` | [Decide what replaces jwt-keycloak on Kong 3.x](backlog.md#bl-01-decide-what-replaces-jwt-keycloak-on-kong-3x) | M3b |
 | `BL-02` | [Kong 3.9.3 Admin API returns 500 with an external plugin registered](backlog.md#bl-02-kong-393-admin-api-returns-500-with-an-external-plugin-registered) | M4 |
-| `BL-03` | [Pin the base image by digest, not by tag](backlog.md#bl-03-pin-the-base-image-by-digest-not-by-tag) | — |
-| `BL-04` | [Publish the image that was tested, not a rebuild of it](backlog.md#bl-04-publish-the-image-that-was-tested-not-a-rebuild-of-it) | — |
 | `BL-05` | [Decide whether to carry the production plugin modifications forward](backlog.md#bl-05-decide-whether-to-carry-the-production-plugin-modifications-forward) | M1 |
 
 ### Medium
@@ -48,6 +46,11 @@ Milestone state comes from the tests themselves, not from a list kept by hand �
 | `BL-14` | [Document where `lua-resty-jwt` and `lua-resty-cookie` come from](backlog.md#bl-14-document-where-lua-resty-jwt-and-lua-resty-cookie-come-from) | — |
 | `BL-15` | [CODEOWNERS and branch protection](backlog.md#bl-15-codeowners-and-branch-protection) | — |
 
+## Finished
+
+- `BL-03` Pin the base image by digest, not by tag
+- `BL-04` Publish the image that was tested, not a rebuild of it
+
 ---
 
-15 open, 0 finished, 5 of 7 milestones reached.
+13 open, 2 finished, 5 of 7 milestones reached.

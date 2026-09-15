@@ -21,7 +21,11 @@ Publishing happens only from an annotated `v*` tag, or from a manual `workflow_d
 for it. A push to `main` builds and tests but publishes nothing: `latest` should mean *the last
 release*, not *the last commit somebody landed*.
 
-Nothing is pushed before [the smoke test](building.md#what-the-smoke-test-checks) passes.
+Nothing is pushed before [the smoke test](building.md#what-the-smoke-test-checks) passes — and what
+is pushed is **the image that passed**, not a rebuild of it. The workflow tags and pushes the exact
+image the milestones and the end-to-end suite ran against. Building a second time to publish usually
+produces identical bits with a warm cache, and "usually" is not a property to rely on for an image
+that guards authentication.
 
 A tag also does not publish every line of the build matrix. The publish steps are gated on
 `publishable`, which `tests/run.sh` reports per Kong version and which is false while **any**
