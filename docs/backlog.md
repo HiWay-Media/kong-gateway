@@ -165,12 +165,18 @@ reappears at workflow level.
 
 ## BL-10 — Pin GitHub Actions by SHA
 
-**Priority:** medium · **Status:** open · **Milestone:** -
+**Priority:** medium · **Status:** done · **Milestone:** -
 
 Actions are pinned by major tag (`@v4`), while invariant 1 of `AGENTS.md` demands exact versions
 everywhere. The same class of mutable reference the repository warns about, applied to itself.
 
 **Done when:** actions are pinned by commit SHA, with a policy for updating them.
+
+✅ **Done 2026-09-15.** Every action in every workflow is pinned to a 40-character commit SHA with
+the version kept beside it as a comment, and `.github/dependabot.yml` bumps those pins weekly —
+pinning without a way to update trades a supply-chain risk for a staleness one and calls it
+progress. `tests/policy.sh` fails if any action returns to a moving reference, or if dependabot
+stops watching them.
 
 ## BL-11 — Review oidcify's maintenance once a quarter
 
