@@ -26,6 +26,14 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.21.1] - 2026-09-15
+
+### Fixed
+- **`BL-12` was done and the backlog said otherwise.** It was closed alongside `BL-06`, recorded in
+  the changelog, and never marked in `docs/backlog.md` — so the roadmap generated from that file
+  carried it as open work. The generator keeps the roadmap honest about the backlog; nothing keeps
+  the backlog honest about reality, and a status typed by hand is exactly where that gap lives.
+
 ## [1.21.0] - 2026-09-15
 
 ### Security
