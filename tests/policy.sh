@@ -142,6 +142,24 @@ else
   bad "a second build-push-action publishes — that is a rebuild, not the tested image"
 fi
 
+echo "==> a tag produces a release, and only jobs that publish can publish"
+
+# A tag that ships images and leaves no readable trace is how a registry fills with versions nobody
+# can map back to a change.
+grep -q "gh release create" "$WORKFLOW" \
+  && ok "a v* tag creates a GitHub release" \
+  || bad "nothing creates a release: a tag would publish images and say nothing"
+
+grep -q "release-notes.sh" "$WORKFLOW" \
+  && ok "the release body comes from CHANGELOG.md, not from a second description" \
+  || bad "the release body is written somewhere other than the changelog"
+
+# Least privilege, and it is checkable: the workflow-level grant must not include packages, so a
+# test suite cannot hold a token that writes to the registry.
+awk '/^permissions:/{f=1;next} /^[a-z]/{f=0} f' "$WORKFLOW" | grep -q "packages:" \
+  && bad "packages: write is granted workflow-wide — the test jobs inherit it" \
+  || ok "registry write is granted per job, not to everything"
+
 echo "==> the backlog check runs on the changes it guards"
 
 # A gate that does not run on the change it guards is decoration. The roadmap is generated from the

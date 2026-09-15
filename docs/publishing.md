@@ -33,6 +33,25 @@ milestone is still declared `XFAIL`. So tagging today publishes `2.8.5` and deli
 `3.9.3`: an image whose own tests say two of its three plugins have no Kong 3.x replacement must not
 be reachable by a `docker pull` that looks like a release. See [Milestones](milestones.md).
 
+## The release
+
+A `v*` tag also creates a **GitHub release**, after the images exist. Its body is the `CHANGELOG.md`
+section for that version — not a second description written for the occasion, because two accounts
+of the same change drift and the one nobody edits is the one people read — followed by the digests
+that were actually pushed:
+
+```
+ghcr.io/hiway-media/kong-gateway:2.8.5@sha256:…
+ghcr.io/hiway-media/kong-gateway:2.8.5-oidcify@sha256:…
+```
+
+If a tag names a version the changelog does not describe, the job fails rather than publishing an
+empty release: an empty release reads as "this change was not worth explaining". And if every line
+was unpublishable — a milestone still `XFAIL` — the release says so instead of listing nothing.
+
+`tests/changelog.sh` checks the extractor produces notes for the newest version and refuses a
+version that does not exist, so the failure is caught before the tag rather than by it.
+
 ## Pin the digest
 
 !!! danger "Pin the digest in your job specs, never the tag"

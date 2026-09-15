@@ -37,5 +37,23 @@ else
   bad "the last commit claims v$CLAIMED but CHANGELOG.md has no [$CLAIMED] section"
 fi
 
+echo "==> the release notes can be extracted from it"
+
+# The release body is this file's section for that version. If the extractor cannot find it, a tag
+# publishes images and produces an empty release — which is worse than no release, because it looks
+# like the change was not worth describing.
+NEWEST=$(printf '%s\n' "$VERSIONS" | head -1)
+if [ -n "$NEWEST" ] && [ -n "$("$ROOT/scripts/release-notes.sh" "$NEWEST" 2>/dev/null)" ]; then
+  ok "the notes for $NEWEST come out non-empty"
+else
+  bad "scripts/release-notes.sh produces nothing for $NEWEST"
+fi
+
+if "$ROOT/scripts/release-notes.sh" 99.99.99 >/dev/null 2>&1; then
+  bad "the extractor invents notes for a version that does not exist"
+else
+  ok "an unknown version is refused rather than guessed"
+fi
+
 [ "$fails" -eq 0 ] && { echo "OK: changelog"; exit 0; }
 echo "RED: $fails changelog problem(s)"; exit 1

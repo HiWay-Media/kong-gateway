@@ -28,9 +28,10 @@ on:
         type: boolean
         default: false
 
+# Declared per job rather than here: the policy and e2e jobs never touch the registry, and a token
+# that can write packages while running a test suite is a permission nobody asked for.
 permissions:
   contents: read
-  packages: write
 
 # Which Kong line `latest` points at. It is a decision, not a side effect of matrix ordering: two
 # lines both claiming `latest` is how a `docker pull` silently changes major version.
@@ -111,6 +112,9 @@ jobs:
   build:
     needs: [policy, e2e]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       # 2.8.5 is phase 1 of the upgrade plan.
@@ -201,6 +205,24 @@ jobs:
           ${{ steps.tags.outputs.list }}
           TAGS
 
+      - name: Record what was published
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
+        # One file per matrix entry, collected by the release job. A release that lists the digests
+        # it actually pushed is the difference between a changelog and an artefact you can pin.
+        run: |
+          name="${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}"
+          image="${{ steps.image.outputs.name }}:$name"
+          digest=$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')
+          mkdir -p published
+          printf '%s@%s\n' "$image" "$digest" >"published/$name.txt"
+
+      - name: Upload what was published
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
+          path: published/
+
       - name: Digest to pin in deployments
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.publish) && steps.milestones.outputs.publishable == 'true'
         run: |
@@ -208,3 +230,51 @@ jobs:
           docker buildx imagetools inspect \
             "${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}" \
             --format '{{println .Manifest.Digest}}'
+
+  # The release is created from the tag, with the changelog section as its body and the digests that
+  # were actually pushed listed underneath. It runs after the images exist, so it can only describe
+  # what is really there — a release written first and published later is a promise, not a record.
+  release:
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect the published digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: published-*
+          path: published
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Write the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes=$(mktemp)
+          ./scripts/release-notes.sh "$version" >"$notes" || {
+            echo "::error::no CHANGELOG section for $version — the tag claims a release the changelog does not describe"
+            exit 1
+          }
+          {
+            echo
+            echo '## Images published by this release'
+            echo
+            if compgen -G 'published/*.txt' >/dev/null; then
+              echo '```'
+              cat published/*.txt
+              echo '```'
+              echo
+              echo 'Pin the digest in deployments, never the tag: a tag can be repushed underneath a'
+              echo 'running workload, a digest cannot.'
+            else
+              echo 'None. Every line was either unpublishable — a milestone still declared `XFAIL` —'
+              echo 'or this tag changed nothing that is built.'
+            fi
+          } >>"$notes"
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$notes" --verify-tag

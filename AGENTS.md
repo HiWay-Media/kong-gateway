@@ -30,6 +30,7 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/e2e/stack.sh` | Which config, plugin list and storage mode belong together — shared by the suite and the local runner |
 | `scripts/run-local.sh` | Starts the same stack and **leaves it up**, for looking at rather than asserting on |
 | `scripts/check-live-config.sh` | Read-only: asks a running Kong whether its configuration depends on the replaced image's modifications |
+| `scripts/release-notes.sh` | Prints the changelog section for one version — the body of its GitHub release |
 | `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
 | `docs/backlog.md` | Known work, with the reason attached. One section per item, parsed |
@@ -124,7 +125,8 @@ Then add it to `docs/milestones.md` under the same identifier.
    moves under your feet cannot be reasoned about after the fact.
 2. **Deployments pin the digest, not the tag.** A tag can be repushed underneath a running
    workload; a digest cannot. CI prints the digest to use.
-3. **Publishing happens only from an annotated `v*` tag** (or an explicit dispatch). `latest` must
+3. **Publishing happens only from an annotated `v*` tag** (or an explicit dispatch), and that tag
+   also creates the GitHub release, whose body is the changelog section for that version. `latest` must
    mean *the last release*, not *the last commit*, and it names one line only — the one in
    `LATEST_LINE`. Changing the tag rules means changing `scripts/publish-tags.sh` and its cases in
    `tests/policy.sh`, never the workflow alone.

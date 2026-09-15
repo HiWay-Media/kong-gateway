@@ -26,6 +26,25 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.19.0] - 2026-09-15
+
+### Added
+- **A `v*` tag now creates the GitHub release**, after the images exist, so it can only describe what
+  is really there. The body is the `CHANGELOG.md` section for that version — not a second
+  description written for the occasion — followed by the digests that were actually pushed, ready to
+  pin.
+- **`scripts/release-notes.sh`** extracts that section, and refuses a version the changelog does not
+  describe. `tests/changelog.sh` asserts both, so a tag cannot produce an empty release: an empty
+  release reads as "this change was not worth explaining".
+- If every line was unpublishable — a milestone still `XFAIL` — the release says so rather than
+  listing nothing.
+
+### Security
+- **Registry write is granted per job** (`BL-09`). `packages: write` was workflow-wide, so the policy
+  and end-to-end jobs held a token that could write to the registry while running tests. It now
+  belongs to the build job alone, and the release job gets `contents: write` and nothing else.
+  `tests/policy.sh` fails if it drifts back.
+
 ## [1.18.0] - 2026-09-15
 
 ### Security
