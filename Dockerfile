@@ -11,7 +11,17 @@
 # the same tree — that is how we measure the distance to 3.x without touching production.
 
 ARG KONG_VERSION=2.8.5
-FROM kong:${KONG_VERSION}-ubuntu
+# The base is pinned by digest, not by tag — the same rule this image asks of the deployments that
+# run it. A tag can be repushed by its publisher; a digest cannot. The value comes from
+# kong-base-digests.env, which is where the mapping from version to digest is kept and refreshed
+# deliberately; the default below matches the default KONG_VERSION so a bare `docker build` is
+# pinned too.
+#
+# Docker cannot choose a FROM conditionally, so the digest arrives as an argument. It is checked
+# against the file by tests/policy.sh, because an argument that nobody verifies is a default waiting
+# to go stale.
+ARG KONG_DIGEST=sha256:a2b02d517849d74f861cf001ac72e1775549bcac0e95d85ed45593390d516a5b
+FROM kong:${KONG_VERSION}-ubuntu@${KONG_DIGEST}
 
 ARG KONG_VERSION
 # Which OIDC implementation this image carries. Empty means "pick by Kong major": kong-oidc below

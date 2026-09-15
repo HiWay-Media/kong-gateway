@@ -52,22 +52,32 @@ where deployments are described.
 
 ## BL-03 — Pin the base image by digest, not by tag
 
-**Priority:** high · **Status:** open · **Milestone:** -
+**Priority:** high · **Status:** done · **Milestone:** -
 
 `FROM kong:${KONG_VERSION}-ubuntu` is a mutable tag. This repository insists deployments pin digests
 and then rests on a tag one level up: reproducibility stops exactly where it is asserted most loudly.
 
 **Done when:** the Dockerfile pins `kong@sha256:…` per line, with the human-readable tag in a comment.
 
+✅ **Done 2026-09-15.** `kong-base-digests.env` holds the mapping; `ARG KONG_DIGEST` defaults to the
+entry for the default version, so a bare `docker build` is pinned too; CI and `scripts/run-local.sh`
+pass the entry for the line they build; and `tests/policy.sh` checks the default still matches the
+file and that every line CI builds has an entry. A wrong digest fails the build outright — verified
+by passing one.
+
 ## BL-04 — Publish the image that was tested, not a rebuild of it
 
-**Priority:** high · **Status:** open · **Milestone:** -
+**Priority:** high · **Status:** done · **Milestone:** -
 
 The publish step runs `build-push-action` a second time. With a warm cache it usually produces the
 same bits — usually is not a guarantee, and the tests certify bits that may not be the ones pushed.
 
 **Done when:** the image is built once and pushed by digest, or the workflow proves the two digests
 match before pushing.
+
+✅ **Done 2026-09-15.** The publish step is `docker tag` plus `docker push` of the image the
+milestones and the end-to-end suite ran against; the second `build-push-action` is gone, and
+`tests/policy.sh` fails if one comes back.
 
 ## BL-05 — Decide whether to carry the production plugin modifications forward
 

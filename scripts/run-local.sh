@@ -70,8 +70,13 @@ esac
 # anything is how a local-run script goes unused.
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   echo "==> $IMAGE is not here yet, building it"
+  # The same pinned base CI uses. Without this the local image is built on whatever the tag
+  # resolves to today, and "works on my machine" becomes literally true and completely useless.
+  DIGEST=$(grep -E "^${KONG_VERSION}=" "$ROOT/kong-base-digests.env" | cut -d= -f2-)
+  [ -n "$DIGEST" ] || { echo "FAIL: no pinned base digest for Kong $KONG_VERSION"; exit 1; }
   docker build ${DOCKER_PLATFORM:+--platform $DOCKER_PLATFORM} \
-    --build-arg "KONG_VERSION=$KONG_VERSION" ${VARIANT:+--build-arg "OIDC_PROVIDER=$VARIANT"} \
+    --build-arg "KONG_VERSION=$KONG_VERSION" --build-arg "KONG_DIGEST=$DIGEST" \
+    ${VARIANT:+--build-arg "OIDC_PROVIDER=$VARIANT"} \
     -t "$IMAGE" "$ROOT" || { echo "FAIL: the build failed"; exit 1; }
 fi
 

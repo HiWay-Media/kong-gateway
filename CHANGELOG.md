@@ -26,6 +26,29 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.16.0] - 2026-09-15
+
+### Fixed
+- **The base image is pinned by digest** (`BL-03`). This repository tells deployments to pin digests
+  and then built itself on `kong:2.8.5-ubuntu` — a mutable tag one level above the rule it was
+  insisting on, in the one place nobody would look for it. `kong-base-digests.env` holds the
+  mapping, `ARG KONG_DIGEST` defaults to the entry for the default version so a bare `docker build`
+  is pinned too, and CI and `scripts/run-local.sh` pass the entry for the line they build.
+- **What is published is the image that was tested** (`BL-04`). The publish step was a second
+  `build-push-action`: with a warm cache it usually produces identical bits, and *usually* is not a
+  property to rely on for an image that guards authentication. It is now `docker tag` plus
+  `docker push` of the exact image the milestones and the end-to-end suite ran against.
+
+### Added
+- `tests/policy.sh` asserts both, so neither can quietly come back: the base must be referenced by
+  digest, the default must match the file, every Kong line built in CI must have an entry, and no
+  second build may run with `push: true`.
+
+### Changed
+- A finished backlog item keeps its **Done when** and gains the outcome beneath it, rather than
+  replacing one with the other. The lint refused the replacement, correctly: without the original
+  criterion nobody can check afterwards that the bar was the one actually met.
+
 ## [1.15.0] - 2026-09-14
 
 ### Added
