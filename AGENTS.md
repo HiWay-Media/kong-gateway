@@ -25,6 +25,7 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/milestones/M*.sh` | One file per milestone: the milestone itself, in executable form |
 | `tests/run.sh` | Runner and summary (also writes the GitHub Actions step summary) |
 | `tests/policy.sh` | Publishing policy tests: which tags a release produces. Needs no image and no Docker |
+| `tests/no-internal-data.sh` | Refuses hostnames, private IPs, production database names, keys and credentials |
 | `tests/e2e/` | The system test: Keycloak, an upstream, and the image between them. `run.sh` owns the waiting and the teardown |
 | `tests/e2e/stack.sh` | Which config, plugin list and storage mode belong together — shared by the suite and the local runner |
 | `scripts/run-local.sh` | Starts the same stack and **leaves it up**, for looking at rather than asserting on |
@@ -134,7 +135,11 @@ Then add it to `docs/milestones.md` under the same identifier.
 6. **Authorization controls are tested by what they refuse.** `kong-path-allow` decides which paths
    are permitted: a test that only proves the module loads would pass even if it stopped blocking
    anything. This holds for any plugin on the auth path.
-7. **No secrets in the repository or in image layers.** Registry credentials come from the workflow.
+7. **No secrets, and no production detail, in the repository or in image layers.** Registry
+   credentials come from the workflow. Hostnames, private IPs, database names, incident names and
+   deployment topology stay out: this is a public recipe, and everything in it should make sense to
+   a reader who has never seen the infrastructure. `tests/no-internal-data.sh` enforces the shapes
+   that leak in practice — a paste from another window is one keystroke, and a push is permanent.
 8. **No tool-attribution footers** — not in commits, pull request descriptions, issues or
    documents, and not quoted verbatim when writing the rule itself. A commit message explains why a
    change was made; a tool signature explains nothing.

@@ -50,6 +50,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./tests/policy.sh
       - run: ./tests/changelog.sh
+      # A public build recipe must not name the infrastructure it runs on. The rule is in AGENTS.md;
+      # this is the part that does not depend on anyone remembering it.
+      - run: ./tests/no-internal-data.sh
       # The backlog and roadmap check lives in .github/workflows/backlog.yml, which triggers on the
       # paths that actually feed it — including a docs-only edit, which this workflow ignores.
 

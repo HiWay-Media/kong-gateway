@@ -26,6 +26,23 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.18.0] - 2026-09-15
+
+### Security
+- **`tests/no-internal-data.sh`**: refuses private IP addresses, internal hostnames, production
+  database names, internal CI or SCM hosts, private keys and hardcoded credentials, over every
+  tracked file. It runs in the `policy` job, which needs no Docker.
+
+  The rule was already in `AGENTS.md`, and a rule that depends on somebody remembering has an expiry
+  date. This repository gets worked on with the infrastructure open in another window — a hostname
+  or a database name is one paste away, and once pushed it is in the history whatever anyone does
+  next.
+- Audited before adding the gate: no internal data in any tracked file, in any commit message, or in
+  the description of any pull request opened from here. The extracted baseline is clean too.
+- `CLAUDE.md` now says the rule covers commit messages and pull request descriptions as well, and
+  names the moment it is most likely to be broken: right after reading a production configuration to
+  answer a question.
+
 ## [1.17.0] - 2026-09-15
 
 ### Added
