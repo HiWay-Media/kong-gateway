@@ -212,9 +212,9 @@ jobs:
         run: |
           name="${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}"
           image="${{ steps.image.outputs.name }}:$name"
-          # `{{println .Manifest.Digest}}` and not `{{.Manifest.Digest}}`: the second prints the
-          # whole default description instead of the field, and the first run of this step recorded
-          # three lines of prose where a digest belonged.
+          # println, and not the bare field reference: without it buildx prints its whole default
+          # description instead of the digest, and the first run of this step recorded three lines
+          # of prose where a digest belonged.
           digest=$(docker buildx imagetools inspect "$image" --format '{{println .Manifest.Digest}}' | head -1)
           case "$digest" in
             sha256:*) ;;

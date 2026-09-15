@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.19.2] - 2026-09-15
+
+### Fixed
+- **A check that failed against a correct workflow.** The assertion added in 1.19.1 searched the
+  whole file for the digest reference written without `println` — and the comment in the workflow
+  explaining that very mistake contained the string, so the check went red on a workflow that was
+  right. `main` was red for the length of one run because of it.
+
+  Comments are stripped before matching now. It is the same shape as quoting a footer inside the rule
+  that bans it, which happened here a few releases ago: **a pattern does not know whether it is being
+  used or being described.** Checked both ways — green against the workflow as it stands, red when
+  `println` is removed from it.
+
 ## [1.19.1] - 2026-09-15
 
 ### Fixed
