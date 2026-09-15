@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.21.0] - 2026-09-15
+
+### Security
+- **Every GitHub Action is pinned to a commit SHA** (`BL-10`), with its version kept alongside as a
+  comment. A major tag is `latest` with extra steps: whoever owns the action can move `v4` to
+  different code, and it runs here in jobs that hold a token able to write to the registry. Invariant
+  1 of `AGENTS.md` demanded exact versions everywhere and the workflows were the exception.
+- **`.github/dependabot.yml`** bumps those pins weekly, and the documentation dependencies with them.
+  Pinning without a way to update trades a supply-chain risk for a staleness one and calls it
+  progress.
+- `tests/policy.sh` fails if any action returns to a moving reference, or if dependabot stops
+  watching them.
+
 ## [1.20.0] - 2026-09-15
 
 ### Added

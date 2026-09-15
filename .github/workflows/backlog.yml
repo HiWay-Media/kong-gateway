@@ -29,7 +29,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Standard library only, so there is nothing to install and nothing to go stale. `check` lints
       # the backlog and then fails if docs/roadmap.md is not what the generator would write from the

@@ -121,8 +121,10 @@ Then add it to `docs/milestones.md` under the same identifier.
 
 ## Invariants — not negotiable without saying so in the commit
 
-1. **Pinned versions, never `latest`.** Rocks, base image, published tags alike. An artefact that
-   moves under your feet cannot be reasoned about after the fact.
+1. **Pinned versions, never `latest`.** Rocks, base image by digest, published tags, and **GitHub
+   Actions by commit SHA** — a major tag is `latest` with extra steps, and an action runs here with a
+   token that can write to the registry. An artefact that moves under your feet cannot be reasoned
+   about after the fact. Dependabot moves the pins; nothing else should.
 2. **Deployments pin the digest, not the tag.** A tag can be repushed underneath a running
    workload; a digest cannot. CI prints the digest to use.
 3. **Publishing happens only from an annotated `v*` tag** (or an explicit dispatch), and that tag

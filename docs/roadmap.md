@@ -31,7 +31,6 @@ Milestone state comes from the tests themselves, not from a list kept by hand â€
 | | Item | Unblocks |
 |---|---|---|
 | `BL-08` | [Warm up the oidcify plugin server on start](backlog.md#bl-08-warm-up-the-oidcify-plugin-server-on-start) | â€” |
-| `BL-10` | [Pin GitHub Actions by SHA](backlog.md#bl-10-pin-github-actions-by-sha) | â€” |
 | `BL-11` | [Review oidcify's maintenance once a quarter](backlog.md#bl-11-review-oidcifys-maintenance-once-a-quarter) | â€” |
 
 ### Low
@@ -46,10 +45,11 @@ Milestone state comes from the tests themselves, not from a list kept by hand â€
 - `BL-04` Publish the image that was tested, not a rebuild of it
 - `BL-06` Add OCI labels and build provenance
 - `BL-09` Scope `packages: write` to the job that publishes
+- `BL-10` Pin GitHub Actions by SHA
 - `BL-13` `plugins/` exists only on disk
 - `BL-14` Document where `lua-resty-jwt` and `lua-resty-cookie` come from
 - `BL-15` CODEOWNERS and branch protection
 
 ---
 
-7 open, 7 finished, 5 of 7 milestones reached.
+6 open, 8 finished, 5 of 7 milestones reached.

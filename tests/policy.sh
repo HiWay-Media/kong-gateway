@@ -175,6 +175,26 @@ awk '/^permissions:/{f=1;next} /^[a-z]/{f=0} f' "$WORKFLOW" | grep -q "packages:
   && bad "packages: write is granted workflow-wide — the test jobs inherit it" \
   || ok "registry write is granted per job, not to everything"
 
+echo "==> every action is pinned to a commit, not to a moving tag"
+
+# Invariant 1 says pinned versions, never latest — and a major tag is `latest` with extra steps:
+# whoever owns the action can move v4 to different code, and it runs here with a token that can
+# write to the registry.
+unpinned=$(grep -rhoE "uses: [a-zA-Z0-9/_.-]+@[^ ]+" "$REPO_ROOT/.github/workflows/" \
+  | grep -vE "@[a-f0-9]{40}$" | sort -u | head -5)
+if [ -z "$unpinned" ]; then
+  ok "all actions are pinned by SHA"
+else
+  bad "actions pinned to a moving reference:"
+  printf '%s\n' "$unpinned" | sed 's/^/         /'
+fi
+
+# Pinning without a way to update is staleness wearing a security badge.
+[ -f "$REPO_ROOT/.github/dependabot.yml" ] \
+  && grep -q "github-actions" "$REPO_ROOT/.github/dependabot.yml" \
+  && ok "dependabot keeps those pins moving" \
+  || bad "nothing updates the pinned actions: pinned and forgotten is its own risk"
+
 echo "==> the backlog check runs on the changes it guards"
 
 # A gate that does not run on the change it guards is decoration. The roadmap is generated from the
