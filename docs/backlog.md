@@ -189,11 +189,15 @@ project simply stops, as `kong-oidc` did for seven years before saying so.
 
 ## BL-12 — Exclude `scripts/` and `docs/` from the build context
 
-**Priority:** low · **Status:** open · **Milestone:** -
+**Priority:** low · **Status:** done · **Milestone:** -
 
 `.dockerignore` does not list them, so they are shipped to the daemon on every build for no reason.
 
 **Done when:** `.dockerignore` covers them.
+
+✅ **Done 2026-09-15**, in the same change that closed `BL-06` — and marked here only afterwards:
+the changelog said done while this file still said open, which is precisely the drift the roadmap
+generator exists to prevent and cannot catch, because it reads this file and believes it.
 
 ## BL-13 — `plugins/` exists only on disk
 
