@@ -26,6 +26,19 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.16.1] - 2026-09-15
+
+### Fixed
+- **The expiry test raced itself.** The short-lived client issued tokens valid for one second, so on
+  a loaded runner fetching the token and issuing the request took longer than the token lived: the
+  assertion that it works *while valid* failed with a 401 that was entirely correct. It passed on
+  the pull request and failed on `main` twenty minutes later — the signature of a flaky test, and one
+  I had introduced while adding coverage for expiry.
+
+  The lifespan is now ten seconds and the wait twelve. A test whose result depends on how busy the
+  machine is teaches people to re-run rather than to read; the extra seconds are the price of not
+  having that.
+
 ## [1.16.0] - 2026-09-15
 
 ### Fixed
