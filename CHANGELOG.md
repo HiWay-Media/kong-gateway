@@ -26,6 +26,31 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.17.0] - 2026-09-15
+
+### Added
+- **`scripts/check-live-config.sh`** (`BL-05`): points at a running Kong's Admin API, or an export,
+  and reports whether any route uses a field only the **modified** plugins accept — which an image
+  built from the upstream rocks refuses outright — and whether `jwt-keycloak` is enforcing roles or
+  scopes, which is what decides whether the 3.x line needs a replacement plugin at all (`BL-01`).
+  Read-only, exits non-zero when something would be rejected, so it can gate a rollout.
+- **[Migrating](docs/migrating.md)**: what each of the six modifications does, and the two very
+  different ways they fail.
+
+### Changed
+- **M1 compares file contents**, not module names, with the six known differences declared and
+  explained. A seventh file drifting fails it — and so does one of the six ceasing to differ, which
+  would mean the modification had reached the upstream rock or been vendored here.
+
+### Security
+- ⚠️ **The risk was worse than the backlog said.** Three of the modifications add configuration
+  fields, and a configuration using them is **rejected** — loud and immediate. The fourth is not:
+  the modified `oidc` handler injects **`X-Access-Token` and `X-ID-Token`** into every authenticated
+  request, and the upstream rock does not. A service reading either header stops receiving it with
+  no error at the gateway and nothing in Kong's logs — the request simply arrives without the
+  identity it expected. No test in this repository can find that, because it lives in the services;
+  the grep to run is in the migration page.
+
 ## [1.16.1] - 2026-09-15
 
 ### Fixed
