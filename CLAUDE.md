@@ -51,9 +51,15 @@ to make it pass unless that is the task. `XPASS` and `FAIL` are real reds.
 - Turn a red test green by removing it, loosening it, or adding `|| true`.
 - Modify `reference/`, publish images, or relax the publishing conditions in the workflow.
 - Add unpinned dependencies or rocks.
-- Put internal hostnames, deployment topology, incident names, or anything else operational into
-  this repository. It is a public build recipe: everything here should make sense to a reader who
-  has never seen the infrastructure it runs on.
+- Put internal hostnames, deployment topology, database names, IP addresses, incident names or
+  anything else operational into this repository — including into commit messages and pull request
+  descriptions, which are just as public and cannot be edited out of a fork.
+
+  It is a public build recipe: everything here should make sense to a reader who has never seen the
+  infrastructure it runs on. This matters most right after reading a production config to answer a
+  question — the detail is in your context and one paste from the repository.
+  `tests/no-internal-data.sh` catches the usual shapes; it is a net, not a substitute for not
+  pasting.
 
 ## Documentation is part of the change, not a follow-up
 

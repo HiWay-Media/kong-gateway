@@ -88,8 +88,21 @@ carried locally modified `oidc` and `jwt-keycloak` plugins, with extra config fi
 (`internal_request_headers`, `redirect_after_authentication_failed_uri`, `timeout`). A configuration
 using any of them would be **rejected** by the new image.
 
-**Done when:** the live configuration has been checked against those field names, and the decision to
-port or drop the modifications is recorded. Then M1 can compare contents instead of module names.
+**Measured 2026-09-15**, and one risk is worse than this item described. The modifications are: an
+`oidc` `timeout` field, `jwt-keycloak`'s `internal_request_headers` and
+`redirect_after_authentication_failed_uri` — all of which make Kong **refuse** a configuration that
+uses them, loudly — and the `oidc` handler injecting **`X-Access-Token` and `X-ID-Token`** into every
+authenticated request, which the upstream rock does not. A service reading either header stops
+receiving it with **no error anywhere**.
+
+`scripts/check-live-config.sh <kong-admin-url>` answers the configuration half against a running
+Kong. The header half has to be answered in the services:
+`grep -ril 'X-ID-Token\|X-Access-Token'`. M1 now compares file contents with the six differences
+declared, so a seventh cannot appear unnoticed.
+
+**Done when:** the check has been run against each zone, the services have been grepped for those
+two headers, and the decision to port or drop each modification is recorded in
+`docs/migrating.md`.
 
 ## BL-06 — Add OCI labels and build provenance
 

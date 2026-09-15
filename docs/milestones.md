@@ -51,7 +51,7 @@ baseline is the only evidence of what was actually running.
 
 The test runs on Kong < 3.0 only — on 3.x the plugin set is different by definition.
 
-!!! warning "Module parity is not source parity, and the sources differ"
+!!! warning "It compares contents now, with six declared exceptions"
     M1 compares which modules exist, not what is in them. Comparing the contents on 2026-09-14
     showed **six files differ** from the baseline: `oidc/handler.lua`, `oidc/schema.lua`,
     `oidc/utils.lua`, `jwt-keycloak/handler.lua`, `jwt-keycloak/schema.lua` and
@@ -68,8 +68,12 @@ The test runs on Kong < 3.0 only — on 3.x the plugin set is different by defin
     running configuration has to be checked against those field names — and a decision made about
     whether to carry the modifications forward or drop them deliberately.
 
-    Turning M1 into a content comparison would make it fail today. That is the honest state; the
-    test is left as it is only until that decision is recorded here.
+    Since 2026-09-15 M1 compares **contents**, with those six files listed as declared exceptions
+    and the reason for each. A seventh file drifting fails it; so does one of the six ceasing to
+    differ. What the exceptions are, and how to find out whether the running configuration depends
+    on them, is in [Migrating](migrating.md) — including the one that fails silently: the modified
+    `oidc` injects `X-Access-Token` and `X-ID-Token`, the upstream rock does not, and a service
+    reading either simply stops receiving it.
 
 ## M2 — 2.x image publishable
 

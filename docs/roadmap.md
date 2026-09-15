@@ -9,7 +9,7 @@ Milestone state comes from the tests themselves, not from a list kept by hand �
 | | Milestone | Applies to | State |
 |---|---|---|---|
 | **M0** | Reproducible recipe: the build produces the Kong version it declares | every image | 🟢 reached |
-| **M1** | Module parity with the extracted 2.0.3 baseline | Kong < 3, kong-oidc image | 🟢 reached |
+| **M1** | Source parity with the extracted 2.0.3 baseline, minus six declared differences | Kong < 3, kong-oidc image | 🟢 reached |
 | **M2** | Kong 2.x image is publishable (pre-push gate) | Kong < 3 | 🟢 reached |
 | **M2b** | Kong 2.x variant carries a maintained OIDC implementation | Kong < 3, oidcify image | 🟢 reached |
 | **M3** | A replacement is chosen for oidc on Kong 3.x — oidcify | Kong >= 3 | 🟢 reached |
