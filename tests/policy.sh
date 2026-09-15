@@ -150,10 +150,16 @@ grep -qE "gh (release edit|api \"repos)" "$WORKFLOW" \
   && ok "a v* tag creates or updates a GitHub release" \
   || bad "nothing creates a release: a tag would publish images and say nothing"
 
-# `{{.Manifest.Digest}}` prints the whole default description rather than the field, and the first
-# real tag recorded three lines of prose where a digest belonged — in notes people copy into
+# Reading the digest field without `println` prints the whole default description instead, and the
+# first real tag recorded three lines of prose where a digest belonged — in notes people copy into
 # deployments.
-if grep -q "{{\.Manifest\.Digest}}" "$WORKFLOW"; then
+#
+# Comments are stripped before matching. The first version of this check searched the whole file,
+# and the comment in the workflow explaining the mistake contained the very string it forbade, so the
+# check failed against a correct workflow. Same shape as quoting a footer in the rule that bans it:
+# a pattern does not know whether it is being used or being described.
+if sed 's/#.*//' "$WORKFLOW" | grep -q "Manifest\.Digest}}" \
+   && ! sed 's/#.*//' "$WORKFLOW" | grep -q "println \.Manifest\.Digest"; then
   bad "a digest is read without println — that prints a description, not a digest"
 else
   ok "digests are read with println, and checked to start with sha256:"
