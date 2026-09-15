@@ -128,8 +128,13 @@ def sync_issues(milestones, apply):
             continue
 
         if want_closed and issue["state"] == "OPEN":
+            # Update first, close second. Closing without the update left the issue showing the
+            # criterion and nothing about how it was met: whoever opens a closed issue is asking
+            # exactly that question, and the answer was sitting in the backlog entry all along.
             print(f"  ~    close issue #{issue['number']} ({item['id']} is {item['status']})")
             if apply:
+                gh("issue", "edit", str(issue["number"]), "--repo", REPO,
+                   "--title", title, "--body", body_for(item, raw))
                 gh("issue", "close", str(issue["number"]), "--repo", REPO)
         else:
             print(f"  ~    update issue #{issue['number']} {title}")
