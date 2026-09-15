@@ -100,6 +100,9 @@ jobs:
             KONG_VERSION=${{ matrix.kong }}
             KONG_DIGEST=${{ steps.base.outputs.digest }}
             OIDC_PROVIDER=${{ matrix.variant }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VERSION=${{ github.ref_name }}
           tags: kong-gateway:e2e-${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
       - name: End-to-end (storage ${{ matrix.db }})
@@ -157,6 +160,9 @@ jobs:
             KONG_VERSION=${{ matrix.kong }}
             KONG_DIGEST=${{ steps.base.outputs.digest }}
             OIDC_PROVIDER=${{ matrix.variant }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            VERSION=${{ github.ref_name }}
           tags: ${{ steps.image.outputs.name }}:${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}-ci
           cache-from: type=gha,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           cache-to: type=gha,mode=max,scope=${{ matrix.kong }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}

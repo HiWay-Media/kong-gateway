@@ -1,0 +1,3 @@
+# Git does not track empty directories, and AGENTS.md describes this one: without this file the
+# folder exists on the author's disk and nowhere else. It is where a plugin written in-house would
+# live — see M3b, where writing one is still on the table.

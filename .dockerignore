@@ -1,5 +1,11 @@
+# What the build does not need has no business in the context: it is copied to the daemon on every
+# build, and anything reachable there is one COPY away from ending up in a layer.
 .git
 .github
+docs
+scripts
 reference
 tests
+site
 *.md
+kong-base-digests.env

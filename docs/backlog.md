@@ -106,7 +106,7 @@ two headers, and the decision to port or drop each modification is recorded in
 
 ## BL-06 — Add OCI labels and build provenance
 
-**Priority:** medium · **Status:** open · **Milestone:** -
+**Priority:** medium · **Status:** done · **Milestone:** -
 
 No `org.opencontainers.image.source`/`revision`/`version`, so GHCR does not link the package to the
 repository and a digest does not say which commit produced it. No SBOM or provenance attestation
@@ -114,14 +114,31 @@ either, on an image that sits on the authentication path.
 
 **Done when:** labels are set from the build, and `provenance`/`sbom` are enabled on the publish step.
 
+✅ **Done 2026-09-15, in the part that was in reach.** The image carries the OCI title, description,
+source, documentation, licence, revision, created and version labels plus the Kong line, with
+revision and version passed by CI — so a digest in a job spec traces back to a commit.
+
+⚠️ Provenance and SBOM attestations are **not** added: they are produced by `buildx --push`, and this
+workflow deliberately pushes the image it tested instead of rebuilding it (`BL-04`). Having both
+needs a step that attests an already-pushed digest. Said here rather than quietly dropped.
+
 ## BL-07 — Remove build tooling from the published image
 
-**Priority:** medium · **Status:** open · **Milestone:** -
+**Priority:** medium · **Status:** dropped · **Milestone:** -
 
 `git`, `unzip` and `curl` stay in the final image. Extra surface on an authentication gateway, for
 tools only the build needs.
 
 **Done when:** they are purged in the same layer, or the plugins are installed in a builder stage.
+
+⛔ **Dropped 2026-09-15 — it cannot be done on this base.** `apt-get purge git unzip curl` takes
+`/usr/local/lib/luarocks` with it: the whole rock tree, every plugin, leaving an image where
+`kong version` answers and not one plugin exists. With `--auto-remove` apt goes further still and
+judges the `kong` package itself orphaned. Measured on real builds, twice.
+
+The extra surface is real and this is not a comfortable answer — but an image whose plugins have
+silently vanished is a worse one. The Dockerfile records it where somebody would otherwise try it
+again.
 
 ## BL-08 — Warm up the oidcify plugin server on start
 
@@ -174,26 +191,39 @@ project simply stops, as `kong-oidc` did for seven years before saying so.
 
 ## BL-13 — `plugins/` exists only on disk
 
-**Priority:** low · **Status:** open · **Milestone:** -
+**Priority:** low · **Status:** done · **Milestone:** -
 
 Git does not track empty directories, so the folder `AGENTS.md` describes is absent from a fresh
 clone.
 
 **Done when:** a `.gitkeep` is added, or the reference is removed.
 
+✅ **Done 2026-09-15.** `plugins/.gitkeep`: the folder now exists in a clone, not only on the
+author's disk.
+
 ## BL-14 — Document where `lua-resty-jwt` and `lua-resty-cookie` come from
 
-**Priority:** low · **Status:** open · **Milestone:** -
+**Priority:** low · **Status:** done · **Milestone:** -
 
 Both are installed from third-party LuaRocks manifests (`cdbattags`, `utix`) without the provenance
 note the other plugins get.
 
 **Done when:** `docs/plugins.md` states their origin and why those manifests.
 
+✅ **Done 2026-09-15.** Each supporting rock has its publisher and its reason for being there,
+including that `lua-resty-jwt` comes from a fork because the original line is dormant.
+
 ## BL-15 — CODEOWNERS and branch protection
 
-**Priority:** low · **Status:** open · **Milestone:** -
+**Priority:** low · **Status:** done · **Milestone:** -
 
 Nothing records who reviews changes to a repository that publishes authentication images.
 
 **Done when:** a CODEOWNERS file exists and the protection rules are described in `AGENTS.md`.
+
+✅ **Done 2026-09-15, by half.** `.github/CODEOWNERS` records who reviews what, listing separately
+the paths where a mistake is published rather than merely committed.
+
+⚠️ GitHub enforces it only when branch protection requires code-owner review. That is a repository
+setting, not a file — so the other half belongs to whoever administers the repository, and no commit
+here can supply it.
