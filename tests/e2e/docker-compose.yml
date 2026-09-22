@@ -138,6 +138,10 @@ services:
       - ${KONG_CONFIG:-./kong/kong.yml}:/kong/kong.yml:ro
     ports:
       - '127.0.0.1:18000:8000'
+      # Bound to loopback, and only ever listening when a database is in use — in DB-less mode
+      # KONG_ADMIN_LISTEN is off and nothing answers here. It exists so scripts/dump-config.sh can
+      # be tried against a real Kong before it is pointed at one that matters.
+      - '127.0.0.1:18001:8001'
 
   # A browser, near enough: it runs inside the network, so the names in the OIDC round trip are the
   # ones that are actually configured. Started on demand by tests/e2e/run.sh, not by `up`.

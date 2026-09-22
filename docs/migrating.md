@@ -36,6 +36,31 @@ Against a running Kong — read-only, GETs only:
 scripts/check-live-config.sh http://<kong-admin-host>:8001
 ```
 
+Or take a copy first, which is worth doing anyway:
+
+```bash
+scripts/dump-config.sh http://<kong-admin-host>:8001 ~/private-repo/kong-config/<zone>
+scripts/check-live-config.sh ~/private-repo/kong-config/<zone>/plugins.json
+```
+
+!!! danger "The dump does not belong in this repository"
+    A gateway's configuration names upstream hosts and services; this repository is public, and a
+    file that lands here is public the moment it is pushed. `dump-config.sh` **refuses** to write
+    inside it — that refusal is the point, not an inconvenience to work around.
+
+    Fields whose names suggest a secret are redacted, and anything left that looks like a credential
+    is reported. The scrub matches field *names*: a key pasted into a header transformation or a
+    URL is invisible to it, so read the dump before committing it even privately.
+
+## Why take a copy at all
+
+The configuration of the gateway being replaced lives in a database and nowhere else — not in git,
+not in the deployment manifests, which carry only the plugin list. So today nobody can diff two
+zones, review a change before it is applied, or restore anything without a database backup.
+
+A dump per zone makes all three possible, and it is the prerequisite for answering the questions
+above for more than one zone at a time.
+
 It reports which plugins are configured, whether any route uses a field only the modified plugins
 accept, and whether `jwt-keycloak` is enforcing roles or scopes (which is what decides whether the
 Kong 3.x line needs a replacement plugin at all — see [M3b](milestones.md#m3b-replacement-chosen-for-jwt-keycloak-on-kong-3x)).

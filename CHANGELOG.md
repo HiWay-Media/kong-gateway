@@ -26,6 +26,35 @@ follows [Semantic Versioning](https://semver.org/).
 
 _(empty — work in progress only; every commit becomes a tagged release)_
 
+## [1.22.0] - 2026-09-22
+
+### Added
+- **`scripts/dump-config.sh`**: a redacted copy of a running Kong's configuration, written to a path
+  **outside** this repository — it refuses to write inside it, because a gateway's configuration
+  names upstream hosts and this recipe is public. Fields whose names suggest a secret are redacted,
+  and anything left that looks like a credential is reported before the file goes anywhere.
+
+  It exists because the configuration of the gateway being replaced lives in a database and nowhere
+  else: not in git, not in the deployment manifests, which carry only the plugin list. Nobody can
+  diff two zones, review a change before it is applied, or restore without a database backup.
+
+### Changed
+- **`BL-02` has an upstream answer**: [`Kong/kong#14260`](https://github.com/Kong/kong/issues/14260),
+  open since February 2025 and still open, with eleven comments. Their reproduction is DB-less with
+  an empty configuration; ours is 3.9.3 with a database, where it also blocks decK — so the fault
+  survived two patch releases and is wider than the report. Waiting for upstream is therefore not a
+  plan: on 3.x it is DB-less, or no external plugin.
+
+### Fixed
+- `check-live-config.sh` could not read the dump `dump-config.sh` writes — the two scripts meant to
+  be used together did not fit each other. Found by running the chain end to end against a real
+  Kong rather than reading it.
+- The redaction marker was written with escaped non-ASCII, so the scan that looks for leftovers did
+  not recognise its own marker and reported every redacted field as a leak. A warning that cries
+  wolf on every run is one people learn to scroll past.
+- That scan also flagged `token_endpoint_auth_method`, which holds a setting and not a credential.
+  It now judges values rather than names.
+
 ## [1.21.1] - 2026-09-15
 
 ### Fixed

@@ -63,9 +63,15 @@ while idx < len(raw):
     doc, idx = decoder.raw_decode(raw, idx)
     docs.append(doc)
 
+# Three shapes reach this: the Admin API's {"data": [...]}, a decK export, and the bare list that
+# scripts/dump-config.sh writes. The last one was not handled, and the two scripts in this
+# repository that are meant to be used together did not fit each other.
 plugins = []
 for d in docs:
-    plugins.extend(d.get("data", d if isinstance(d, list) else []))
+    if isinstance(d, list):
+        plugins.extend(d)
+    elif isinstance(d, dict):
+        plugins.extend(d.get("data", []))
 
 if not plugins:
     print("  no plugins found — is this the right Kong, and does it have any configured?")

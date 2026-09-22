@@ -47,6 +47,15 @@ equivalent or the plugin is dropped — with the reasoning written in `docs/mile
 and anything else reading that endpoint — cannot configure a database-backed Kong 3.9.3. Kong 2.8.5
 with the same plugin answers 200, and DB-less 3.x is unaffected.
 
+⚠️ **It is known upstream and has been open for a year and a half**:
+[`Kong/kong#14260`](https://github.com/Kong/kong/issues/14260), *"go-pdk plugins break Kong 3.9.0"*,
+opened 2025-02-11, eleven comments, still open as of 2026-09-22. Their reproduction is DB-less with
+an empty configuration; ours is 3.9.3 with a database, where it also blocks decK — so the fault
+survives two patch releases and is wider than the report.
+
+That settles one thing: **waiting for upstream is not a plan.** The 3.x line is either DB-less, or
+it does not use an external plugin.
+
 **Done when:** either upstream fixes it, or the 3.x line is committed to DB-less and that is stated
 where deployments are described.
 
@@ -95,8 +104,10 @@ uses them, loudly — and the `oidc` handler injecting **`X-Access-Token` and `X
 authenticated request, which the upstream rock does not. A service reading either header stops
 receiving it with **no error anywhere**.
 
-`scripts/check-live-config.sh <kong-admin-url>` answers the configuration half against a running
-Kong. The header half has to be answered in the services:
+`scripts/dump-config.sh <kong-admin-url> <private-path>` takes a redacted copy first — worth doing
+regardless, since the configuration exists in a database and nowhere else — and
+`scripts/check-live-config.sh` reads either that dump or a live Admin API to answer the
+configuration half. The header half has to be answered in the services:
 `grep -ril 'X-ID-Token\|X-Access-Token'`. M1 now compares file contents with the six differences
 declared, so a seventh cannot appear unnoticed.
 

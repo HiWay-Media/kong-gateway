@@ -29,7 +29,8 @@ that builds but whose contents nobody can account for is the starting point, not
 | `tests/e2e/` | The system test: Keycloak, an upstream, and the image between them. `run.sh` owns the waiting and the teardown |
 | `tests/e2e/stack.sh` | Which config, plugin list and storage mode belong together — shared by the suite and the local runner |
 | `scripts/run-local.sh` | Starts the same stack and **leaves it up**, for looking at rather than asserting on |
-| `scripts/check-live-config.sh` | Read-only: asks a running Kong whether its configuration depends on the replaced image's modifications |
+| `scripts/check-live-config.sh` | Read-only: asks a running Kong, or a dump, whether its configuration depends on the replaced image's modifications |
+| `scripts/dump-config.sh` | Read-only: a redacted copy of a live configuration. Refuses to write inside this repository |
 | `scripts/release-notes.sh` | Prints the changelog section for one version — the body of its GitHub release |
 | `scripts/publish-tags.sh` | Decides the tag list for a publish — in a script so the policy test can exercise it |
 | `docs/` | The published documentation site (MkDocs) |
